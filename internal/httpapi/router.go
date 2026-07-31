@@ -32,19 +32,57 @@ type RegistrationLimiter interface {
 }
 
 // NewRouter builds the HTTP router for the PhotoVault API.
-func NewRouter(logger *slog.Logger, deviceRegistrar DeviceRegistrar, registrationLimiter RegistrationLimiter, authenticator authn.Authenticator, uploadHandler, fileHandler http.Handler, syncHandler *SyncHandler) http.Handler {
+func NewRouter(logger *slog.Logger, deviceRegistrar DeviceRegistrar, registrationLimiter RegistrationLimiter, authenticator authn.Authenticator, uploadHandler, fileHandler http.Handler, syncHandler *SyncHandler, mediaHandlers ...http.Handler) http.Handler {
+	var metrics interface {
+		Observe(string, string, int, time.Duration)
+	}
+	if len(mediaHandlers) > 2 {
+		if ops, ok := mediaHandlers[2].(*OperationsHandler); ok {
+			metrics = ops.metrics
+		}
+	}
 	router := chi.NewRouter()
 	router.Use(middleware.RequestID)
 	router.Use(middleware.RealIP)
-	router.Use(requestLogger(logger))
+	router.Use(requestLogger(logger, metrics))
 	router.Use(middleware.Recoverer)
-	router.Get("/health", health)
+	if metrics == nil {
+		router.Get("/health", health)
+	}
 	router.Post("/devices/register", registerDevice(deviceRegistrar, registrationLimiter))
 	auth := authn.Middleware(logger, authenticator)
 	router.With(auth).Post("/upload", uploadHandler.ServeHTTP)
 	router.With(auth).Get("/files/exists", fileHandler.ServeHTTP)
 	router.With(auth).Get("/sync/diff", syncHandler.Diff)
 	router.With(auth).Post("/sync/ack", syncHandler.Ack)
+	if len(mediaHandlers) > 0 && mediaHandlers[0] != nil {
+		router.With(auth).Get("/media/{id}/original", mediaHandlers[0].ServeHTTP)
+		if media, ok := mediaHandlers[0].(*MediaHandler); ok {
+			router.With(auth).Get("/media/{id}/thumbnail", media.Thumbnail)
+			router.With(auth).Get("/media/{id}/preview", media.Preview)
+		}
+	}
+	if len(mediaHandlers) > 1 {
+		if index, ok := mediaHandlers[1].(*IndexHandler); ok {
+			router.With(auth).Get("/media", index.Search)
+			router.With(auth).Get("/media/{id}", index.Get)
+			router.With(auth).Post("/media/{id}/favorite", index.Favorite)
+			router.With(auth).Delete("/media/{id}/favorite", index.Favorite)
+			router.With(auth).Delete("/media/{id}", index.Delete)
+		}
+	}
+	if len(mediaHandlers) > 2 {
+		if ops, ok := mediaHandlers[2].(*OperationsHandler); ok {
+			router.Get("/metrics", ops.Metrics)
+			router.Get("/ready", ops.Ready)
+			router.Get("/health", ops.Health)
+		}
+	}
+	if len(mediaHandlers) > 3 {
+		if vault, ok := mediaHandlers[3].(*VaultHandler); ok {
+			router.With(auth).Post("/vaults", vault.Create)
+		}
+	}
 	return router
 }
 
@@ -101,11 +139,21 @@ func health(writer http.ResponseWriter, request *http.Request) {
 	writeJSON(writer, http.StatusOK, map[string]string{"status": "ok"})
 }
 
-func requestLogger(logger *slog.Logger) func(http.Handler) http.Handler {
+func requestLogger(logger *slog.Logger, metrics interface {
+	Observe(string, string, int, time.Duration)
+}) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 			startedAt := time.Now()
-			next.ServeHTTP(writer, request)
+			recorder := &statusRecorder{ResponseWriter: writer, status: http.StatusOK}
+			next.ServeHTTP(recorder, request)
+			route := request.URL.Path
+			if routeContext := chi.RouteContext(request.Context()); routeContext != nil && routeContext.RoutePattern() != "" {
+				route = routeContext.RoutePattern()
+			}
+			if metrics != nil {
+				metrics.Observe(request.Method, route, recorder.status, time.Since(startedAt))
+			}
 			logger.Info("HTTP request completed",
 				"request_id", middleware.GetReqID(request.Context()),
 				"method", request.Method,
@@ -114,6 +162,16 @@ func requestLogger(logger *slog.Logger) func(http.Handler) http.Handler {
 			)
 		})
 	}
+}
+
+type statusRecorder struct {
+	http.ResponseWriter
+	status int
+}
+
+func (r *statusRecorder) WriteHeader(status int) {
+	r.status = status
+	r.ResponseWriter.WriteHeader(status)
 }
 
 func writeJSON(writer http.ResponseWriter, status int, response any) {

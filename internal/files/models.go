@@ -5,11 +5,16 @@ import "time"
 
 // File contains stored media metadata needed by upload responses and later API operations.
 type File struct {
-	ID        string
-	Hash      string
-	SizeBytes int64
-	MIMEType  string
-	Status    string
+	ID               string
+	Hash             string
+	OriginalFilename string
+	SizeBytes        int64
+	MIMEType         string
+	StoragePath      string
+	ThumbnailPath    string
+	PreviewPath      string
+	UploadedAt       time.Time
+	Status           string
 }
 
 // Existence contains only file metadata permitted by the hash-existence API.

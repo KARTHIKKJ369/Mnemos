@@ -189,7 +189,7 @@ func newTestHandler(t *testing.T, maximumSize int64) (http.Handler, *sql.DB, dev
 	if _, err := db.Exec("INSERT INTO devices (id, name, device_type, auth_token_hash, created_at, last_seen_at) VALUES (?, ?, ?, ?, ?, ?)", device.ID, device.Name, device.DeviceType, "hash", 0, 0); err != nil {
 		t.Fatalf("insert device: %v", err)
 	}
-	return NewHandler(storage.NewBlobStore(layout), files.NewStore(db), maximumSize, layout.Blobs, slog.New(slog.NewJSONHandler(io.Discard, nil))), db, device
+	return NewHandler(storage.NewBlobStore(layout), files.NewRepository(db), maximumSize, layout.Blobs, slog.New(slog.NewJSONHandler(io.Discard, nil))), db, device
 }
 
 type testAuthenticator struct{ device devices.Device }

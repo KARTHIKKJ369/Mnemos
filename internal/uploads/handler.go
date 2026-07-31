@@ -28,7 +28,7 @@ const contentSniffBytes = 512
 // Handler accepts authenticated multipart file uploads.
 type Handler struct {
 	blobStore     *storage.BlobStore
-	fileStore     *files.Store
+	fileStore     *files.Repository
 	maximumSize   int64
 	logger        *slog.Logger
 	now           func() time.Time
@@ -36,7 +36,7 @@ type Handler struct {
 }
 
 // NewHandler constructs an upload handler with the configured maximum request size.
-func NewHandler(blobStore *storage.BlobStore, fileStore *files.Store, maximumSize int64, temporaryRoot string, logger *slog.Logger) *Handler {
+func NewHandler(blobStore *storage.BlobStore, fileStore *files.Repository, maximumSize int64, temporaryRoot string, logger *slog.Logger) *Handler {
 	return &Handler{blobStore: blobStore, fileStore: fileStore, maximumSize: maximumSize, temporaryRoot: temporaryRoot, logger: logger, now: time.Now}
 }
 

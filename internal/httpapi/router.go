@@ -32,7 +32,7 @@ type RegistrationLimiter interface {
 }
 
 // NewRouter builds the HTTP router for the PhotoVault API.
-func NewRouter(logger *slog.Logger, deviceRegistrar DeviceRegistrar, registrationLimiter RegistrationLimiter, authenticator authn.Authenticator, uploadHandler http.Handler) http.Handler {
+func NewRouter(logger *slog.Logger, deviceRegistrar DeviceRegistrar, registrationLimiter RegistrationLimiter, authenticator authn.Authenticator, uploadHandler, fileHandler http.Handler, syncHandler *SyncHandler) http.Handler {
 	router := chi.NewRouter()
 	router.Use(middleware.RequestID)
 	router.Use(middleware.RealIP)
@@ -40,7 +40,11 @@ func NewRouter(logger *slog.Logger, deviceRegistrar DeviceRegistrar, registratio
 	router.Use(middleware.Recoverer)
 	router.Get("/health", health)
 	router.Post("/devices/register", registerDevice(deviceRegistrar, registrationLimiter))
-	router.With(authn.Middleware(logger, authenticator)).Post("/upload", uploadHandler.ServeHTTP)
+	auth := authn.Middleware(logger, authenticator)
+	router.With(auth).Post("/upload", uploadHandler.ServeHTTP)
+	router.With(auth).Get("/files/exists", fileHandler.ServeHTTP)
+	router.With(auth).Get("/sync/diff", syncHandler.Diff)
+	router.With(auth).Post("/sync/ack", syncHandler.Ack)
 	return router
 }
 

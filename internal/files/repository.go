@@ -1,4 +1,3 @@
-// Package files manages PhotoVault media metadata and sync state.
 package files
 
 import (
@@ -7,44 +6,23 @@ import (
 	"errors"
 	"fmt"
 	"strings"
-	"time"
 
 	"github.com/google/uuid"
 )
 
-// File contains stored media metadata needed by upload responses and later API operations.
-type File struct {
-	ID        string
-	Hash      string
-	SizeBytes int64
-	MIMEType  string
-	Status    string
-}
-
-// CreateInput is the metadata recorded for a newly uploaded blob.
-type CreateInput struct {
-	Hash               string
-	OriginalFilename   string
-	MIMEType           string
-	SizeBytes          int64
-	UploadedByDeviceID string
-	StoragePath        string
-	UploadedAt         time.Time
-}
-
-// Store writes and reads PhotoVault file metadata.
-type Store struct {
+// Repository persists and retrieves PhotoVault file metadata.
+type Repository struct {
 	database *sql.DB
 }
 
-// NewStore constructs a SQLite-backed file metadata store.
-func NewStore(database *sql.DB) *Store {
-	return &Store{database: database}
+// NewRepository constructs a SQLite-backed file metadata repository.
+func NewRepository(database *sql.DB) *Repository {
+	return &Repository{database: database}
 }
 
 // CreateOrGet creates a file record and uploader sync state, or returns the existing hash record.
-func (store *Store) CreateOrGet(ctx context.Context, input CreateInput) (File, bool, error) {
-	tx, err := store.database.BeginTx(ctx, nil)
+func (repository *Repository) CreateOrGet(ctx context.Context, input CreateInput) (File, bool, error) {
+	tx, err := repository.database.BeginTx(ctx, nil)
 	if err != nil {
 		return File{}, false, fmt.Errorf("begin file transaction: %w", err)
 	}
@@ -76,6 +54,19 @@ func (store *Store) CreateOrGet(ctx context.Context, input CreateInput) (File, b
 		return File{}, false, fmt.Errorf("commit file transaction: %w", err)
 	}
 	return file, created, nil
+}
+
+// FindExistence performs one indexed lookup for a file hash.
+func (repository *Repository) FindExistence(ctx context.Context, hash string) (Existence, bool, error) {
+	var result Existence
+	err := repository.database.QueryRowContext(ctx, "SELECT id, size_bytes FROM files WHERE hash = ?", hash).Scan(&result.FileID, &result.SizeBytes)
+	if errors.Is(err, sql.ErrNoRows) {
+		return Existence{}, false, nil
+	}
+	if err != nil {
+		return Existence{}, false, fmt.Errorf("query file existence: %w", err)
+	}
+	return result, true, nil
 }
 
 func findByHash(ctx context.Context, tx *sql.Tx, hash string) (File, error) {

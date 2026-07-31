@@ -2,6 +2,7 @@
 package uploads
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -33,11 +34,17 @@ type Handler struct {
 	logger        *slog.Logger
 	now           func() time.Time
 	temporaryRoot string
+	jobs          []JobEnqueuer
+}
+
+// JobEnqueuer persists asynchronous media processing work.
+type JobEnqueuer interface {
+	Enqueue(context.Context, string) error
 }
 
 // NewHandler constructs an upload handler with the configured maximum request size.
-func NewHandler(blobStore *storage.BlobStore, fileStore *files.Repository, maximumSize int64, temporaryRoot string, logger *slog.Logger) *Handler {
-	return &Handler{blobStore: blobStore, fileStore: fileStore, maximumSize: maximumSize, temporaryRoot: temporaryRoot, logger: logger, now: time.Now}
+func NewHandler(blobStore *storage.BlobStore, fileStore *files.Repository, maximumSize int64, temporaryRoot string, logger *slog.Logger, jobEnqueuers ...JobEnqueuer) *Handler {
+	return &Handler{blobStore: blobStore, fileStore: fileStore, maximumSize: maximumSize, temporaryRoot: temporaryRoot, logger: logger, now: time.Now, jobs: jobEnqueuers}
 }
 
 // ServeHTTP receives one multipart field named file and stores it content-addressably.
@@ -108,6 +115,12 @@ func (handler *Handler) ServeHTTP(writer http.ResponseWriter, request *http.Requ
 	if err != nil {
 		handler.writeUploadError(writer, request, device.ID, device.Name, startedAt, bytesReceived, false, err)
 		return
+	}
+	for _, jobs := range handler.jobs {
+		if err := jobs.Enqueue(request.Context(), file.ID); err != nil {
+			handler.writeUploadError(writer, request, device.ID, device.Name, startedAt, bytesReceived, deduplicated, fmt.Errorf("enqueue media processing: %w", err))
+			return
+		}
 	}
 
 	handler.logger.Info("upload finished", "device_id", device.ID, "device_name", device.Name, "remote_ip", requestRemoteIP(request), "user_agent", request.UserAgent(), "duration_ms", handler.now().Sub(startedAt).Milliseconds(), "bytes_received", bytesReceived, "deduplicated", deduplicated)

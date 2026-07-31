@@ -74,10 +74,40 @@ func (store *BlobStore) Finalize(temporaryPath, hash, mimeType string, device de
 
 // Remove deletes a finalized blob after its associated metadata transaction fails.
 func (store *BlobStore) Remove(relativePath string) error {
-	if err := os.Remove(filepath.Join(store.layout.Root, filepath.FromSlash(relativePath))); err != nil && !os.IsNotExist(err) {
+	path, err := store.resolve(relativePath)
+	if err != nil {
+		return err
+	}
+	if err := os.Remove(path); err != nil && !os.IsNotExist(err) {
 		return fmt.Errorf("remove blob: %w", err)
 	}
 	return nil
+}
+
+// Open safely resolves and opens a persisted relative blob path for streaming.
+func (store *BlobStore) Open(relativePath string) (*os.File, error) {
+	path, err := store.resolve(relativePath)
+	if err != nil {
+		return nil, err
+	}
+	file, err := os.Open(path)
+	if err != nil {
+		return nil, fmt.Errorf("open blob: %w", err)
+	}
+	return file, nil
+}
+
+func (store *BlobStore) resolve(relativePath string) (string, error) {
+	path := filepath.FromSlash(relativePath)
+	if path == "." || path == "" || filepath.IsAbs(path) || !filepath.IsLocal(path) {
+		return "", fmt.Errorf("invalid blob path")
+	}
+	resolved := filepath.Join(store.layout.Root, path)
+	relativeToRoot, err := filepath.Rel(store.layout.Root, resolved)
+	if err != nil || relativeToRoot == ".." || strings.HasPrefix(relativeToRoot, ".."+string(filepath.Separator)) {
+		return "", fmt.Errorf("invalid blob path")
+	}
+	return resolved, nil
 }
 
 func extensionForMIMEType(mimeType string) string {

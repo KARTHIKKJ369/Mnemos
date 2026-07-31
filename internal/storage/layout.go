@@ -24,8 +24,8 @@ func Ensure(root string) (Layout, error) {
 		Root:        root,
 		Blobs:       filepath.Join(root, "blobs"),
 		ByDevice:    filepath.Join(root, "blobs", "by-device"),
-		Thumbnails:  filepath.Join(root, "derived", "thumbnails"),
-		Previews:    filepath.Join(root, "derived", "previews"),
+		Thumbnails:  filepath.Join(root, "thumbnails"),
+		Previews:    filepath.Join(root, "previews"),
 		Locked:      filepath.Join(root, ".locked"),
 		LockedBlobs: filepath.Join(root, ".locked", "blobs"),
 	}

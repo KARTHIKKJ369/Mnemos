@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/google/uuid"
 )
@@ -67,6 +68,25 @@ func (repository *Repository) FindExistence(ctx context.Context, hash string) (E
 		return Existence{}, false, fmt.Errorf("query file existence: %w", err)
 	}
 	return result, true, nil
+}
+
+// GetFileByID returns the media metadata required to retrieve an original blob.
+func (repository *Repository) GetFileByID(ctx context.Context, id string) (File, bool, error) {
+	var file File
+	var uploadedAtMillis int64
+	err := repository.database.QueryRowContext(ctx, `
+		SELECT id, hash, original_filename, mime_type, size_bytes, storage_path, COALESCE(thumbnail_path, ''), COALESCE(preview_path, ''), uploaded_at, status
+		FROM files
+		WHERE id = ?
+	`, id).Scan(&file.ID, &file.Hash, &file.OriginalFilename, &file.MIMEType, &file.SizeBytes, &file.StoragePath, &file.ThumbnailPath, &file.PreviewPath, &uploadedAtMillis, &file.Status)
+	if errors.Is(err, sql.ErrNoRows) {
+		return File{}, false, nil
+	}
+	if err != nil {
+		return File{}, false, fmt.Errorf("query file by ID: %w", err)
+	}
+	file.UploadedAt = time.UnixMilli(uploadedAtMillis).UTC()
+	return file, true, nil
 }
 
 func findByHash(ctx context.Context, tx *sql.Tx, hash string) (File, error) {

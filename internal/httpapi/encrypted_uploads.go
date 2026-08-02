@@ -1,6 +1,6 @@
 package httpapi
 
-import("context";"encoding/base64";"encoding/json";"io";"net/http";"strconv";"github.com/go-chi/chi/v5";"photovault/internal/authn";"photovault/internal/encrypteduploads";"photovault/internal/httperror")
+import("context";"encoding/base64";"io";"net/http";"strconv";"github.com/go-chi/chi/v5";"photovault/internal/authn";"photovault/internal/encrypteduploads";"photovault/internal/httperror")
 type EncryptedUploadService interface{Create(context.Context,string,string)(encrypteduploads.Session,error);PutChunk(context.Context,string,string,string,int,[]byte,[]byte,int64,io.Reader)error;Get(context.Context,string,string,string)(encrypteduploads.Session,error);Cancel(context.Context,string,string,string)error;Complete(context.Context,string,string,string,encrypteduploads.CompleteInput)error}
 type EncryptedUploadHandler struct{service EncryptedUploadService}
 func NewEncryptedUploadHandler(s EncryptedUploadService)*EncryptedUploadHandler{return &EncryptedUploadHandler{s}}

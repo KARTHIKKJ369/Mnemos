@@ -16,7 +16,6 @@ import { Route as AppFavoritesRouteImport } from './routes/_app/favorites'
 import { Route as AppGalleryRouteImport } from './routes/_app/gallery'
 import { Route as AppSearchRouteImport } from './routes/_app/search'
 import { Route as AppSettingsRouteImport } from './routes/_app/settings'
-import { Route as AppStorageRouteImport } from './routes/_app/storage'
 import { Route as AppSyncRouteImport } from './routes/_app/sync'
 import { Route as AppTimelineRouteImport } from './routes/_app/timeline'
 import { Route as AppTrashRouteImport } from './routes/_app/trash'
@@ -56,11 +55,6 @@ const AppSettingsRoute = AppSettingsRouteImport.update({
   path: '/settings',
   getParentRoute: () => AppRoute,
 } as any)
-const AppStorageRoute = AppStorageRouteImport.update({
-  id: '/storage',
-  path: '/storage',
-  getParentRoute: () => AppRoute,
-} as any)
 const AppSyncRoute = AppSyncRouteImport.update({
   id: '/sync',
   path: '/sync',
@@ -89,7 +83,6 @@ export interface FileRoutesByFullPath {
   '/gallery': typeof AppGalleryRoute
   '/search': typeof AppSearchRoute
   '/settings': typeof AppSettingsRoute
-  '/storage': typeof AppStorageRoute
   '/sync': typeof AppSyncRoute
   '/timeline': typeof AppTimelineRoute
   '/trash': typeof AppTrashRoute
@@ -101,7 +94,6 @@ export interface FileRoutesByTo {
   '/gallery': typeof AppGalleryRoute
   '/search': typeof AppSearchRoute
   '/settings': typeof AppSettingsRoute
-  '/storage': typeof AppStorageRoute
   '/sync': typeof AppSyncRoute
   '/timeline': typeof AppTimelineRoute
   '/trash': typeof AppTrashRoute
@@ -116,7 +108,6 @@ export interface FileRoutesById {
   '/_app/gallery': typeof AppGalleryRoute
   '/_app/search': typeof AppSearchRoute
   '/_app/settings': typeof AppSettingsRoute
-  '/_app/storage': typeof AppStorageRoute
   '/_app/sync': typeof AppSyncRoute
   '/_app/timeline': typeof AppTimelineRoute
   '/_app/trash': typeof AppTrashRoute
@@ -132,7 +123,6 @@ export interface FileRouteTypes {
     | '/gallery'
     | '/search'
     | '/settings'
-    | '/storage'
     | '/sync'
     | '/timeline'
     | '/trash'
@@ -144,7 +134,6 @@ export interface FileRouteTypes {
     | '/gallery'
     | '/search'
     | '/settings'
-    | '/storage'
     | '/sync'
     | '/timeline'
     | '/trash'
@@ -158,7 +147,6 @@ export interface FileRouteTypes {
     | '/_app/gallery'
     | '/_app/search'
     | '/_app/settings'
-    | '/_app/storage'
     | '/_app/sync'
     | '/_app/timeline'
     | '/_app/trash'
@@ -221,13 +209,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppSettingsRouteImport
       parentRoute: typeof AppRoute
     }
-    '/_app/storage': {
-      id: '/_app/storage'
-      path: '/storage'
-      fullPath: '/storage'
-      preLoaderRoute: typeof AppStorageRouteImport
-      parentRoute: typeof AppRoute
-    }
     '/_app/sync': {
       id: '/_app/sync'
       path: '/sync'
@@ -265,7 +246,6 @@ interface AppRouteChildren {
   AppGalleryRoute: typeof AppGalleryRoute
   AppSearchRoute: typeof AppSearchRoute
   AppSettingsRoute: typeof AppSettingsRoute
-  AppStorageRoute: typeof AppStorageRoute
   AppSyncRoute: typeof AppSyncRoute
   AppTimelineRoute: typeof AppTimelineRoute
   AppTrashRoute: typeof AppTrashRoute
@@ -279,7 +259,6 @@ const AppRouteChildren: AppRouteChildren = {
   AppGalleryRoute: AppGalleryRoute,
   AppSearchRoute: AppSearchRoute,
   AppSettingsRoute: AppSettingsRoute,
-  AppStorageRoute: AppStorageRoute,
   AppSyncRoute: AppSyncRoute,
   AppTimelineRoute: AppTimelineRoute,
   AppTrashRoute: AppTrashRoute,

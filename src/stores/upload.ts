@@ -11,6 +11,7 @@ interface UploadStore {
   clearCompleted: () => void
   setOpen: (open: boolean) => void
   activeCount: () => number
+  pendingCount: () => number
 }
 
 const TERMINAL_STATUSES: UploadStatus[] = ['complete', 'duplicate', 'error', 'cancelled']
@@ -51,4 +52,10 @@ export const useUploadStore = create<UploadStore>()((set, get) => ({
     const { queue } = get()
     return queue.filter((i) => !TERMINAL_STATUSES.includes(i.status)).length
   },
+
+  pendingCount: () => {
+    const { queue } = get()
+    return queue.filter((i) => i.status === 'hashing' || i.status === 'checking').length
+  },
 }))
+

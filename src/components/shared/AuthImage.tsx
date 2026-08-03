@@ -1,6 +1,5 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { fetchMediaBlob } from '@/api/client'
-import { blobCache, makeBlobCacheKey } from '@/lib/blobCache'
 import { cn } from '@/lib/utils'
 
 interface AuthImageProps {
@@ -12,14 +11,8 @@ interface AuthImageProps {
   placeholder?: React.ReactNode
 }
 
-/**
- * Renders an auth-gated media image using a shared LRU blob URL cache.
- *
- * - First render: checks cache, shows skeleton if miss, fetches in background
- * - Cache hit: renders immediately, no flash
- * - URLs are NOT revoked on unmount — the LRU cache manages their lifetime
- * - Max 400 cached URLs; LRU eviction automatically revokes old ones
- */
+/** Fetches media with the auth token and renders it as an <img>.
+ *  Cleans up the object URL on unmount to prevent memory leaks. */
 export function AuthImage({
   mediaId,
   type,
@@ -28,23 +21,12 @@ export function AuthImage({
   onLoad,
   placeholder,
 }: AuthImageProps) {
-  const cacheKey = makeBlobCacheKey(mediaId, type)
-
-  const [src, setSrc] = useState<string | null>(() => blobCache.get(cacheKey) ?? null)
-  const [loaded, setLoaded] = useState(() => blobCache.has(cacheKey))
+  const [src, setSrc] = useState<string | null>(null)
+  const [loaded, setLoaded] = useState(false)
   const [error, setError] = useState(false)
+  const urlRef = useRef<string | null>(null)
 
   useEffect(() => {
-    const key = makeBlobCacheKey(mediaId, type)
-
-    // Cache hit — nothing to do
-    const cached = blobCache.get(key)
-    if (cached) {
-      setSrc(cached)
-      setLoaded(true)
-      return
-    }
-
     let cancelled = false
     setSrc(null)
     setLoaded(false)
@@ -53,11 +35,12 @@ export function AuthImage({
     fetchMediaBlob(mediaId, type)
       .then((objectUrl) => {
         if (cancelled) {
-          // Component unmounted before fetch finished — don't cache, revoke immediately
           URL.revokeObjectURL(objectUrl)
           return
         }
-        blobCache.set(key, objectUrl)
+        // Revoke old URL
+        if (urlRef.current) URL.revokeObjectURL(urlRef.current)
+        urlRef.current = objectUrl
         setSrc(objectUrl)
       })
       .catch(() => {
@@ -66,23 +49,27 @@ export function AuthImage({
 
     return () => {
       cancelled = true
-      // Do NOT revoke here — the cache owns the URL lifetime
     }
   }, [mediaId, type])
+
+  useEffect(() => {
+    return () => {
+      if (urlRef.current) URL.revokeObjectURL(urlRef.current)
+    }
+  }, [])
 
   if (error) {
     return (
       <div className={cn('flex items-center justify-center bg-[--color-surface-overlay]', className)}>
-        <span className="text-[--color-text-disabled] text-xs">—</span>
+        <span className="text-[--color-text-disabled] text-xs">Failed</span>
       </div>
     )
   }
 
   return (
-    <div className={cn('relative', className)}>
-      {/* Skeleton shown while loading */}
-      {!loaded && (
-        <div className={cn('absolute inset-0 skeleton', !src && 'z-10')}>
+    <>
+      {(!src || !loaded) && (
+        <div className={cn('skeleton', className)}>
           {placeholder}
         </div>
       )}
@@ -91,9 +78,9 @@ export function AuthImage({
           src={src}
           alt={alt}
           className={cn(
-            'w-full h-full object-cover',
-            'transition-opacity duration-[200ms] ease-out',
-            loaded ? 'opacity-100' : 'opacity-0',
+            'transition-opacity duration-[220ms] ease-out',
+            loaded ? 'opacity-100' : 'opacity-0 absolute',
+            className,
           )}
           onLoad={() => {
             setLoaded(true)
@@ -101,6 +88,7 @@ export function AuthImage({
           }}
         />
       )}
-    </div>
+    </>
   )
 }
+

@@ -66,7 +66,7 @@ export function TimelinePage() {
         <Virtuoso
           className="flex-1"
           totalCount={rows.length}
-          overscan={400}
+          overscan={1000}
           endReached={() => {
             if (hasNextPage && !isFetchingNextPage) fetchNextPage()
           }}
@@ -128,3 +128,4 @@ export function TimelinePage() {
     </div>
   )
 }
+

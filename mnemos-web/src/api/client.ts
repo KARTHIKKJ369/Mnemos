@@ -44,7 +44,7 @@ interface FetchOptions extends RequestInit {
   token?: string | null
 }
 
-async function apiFetch<T>(path: string, options: FetchOptions = {}): Promise<T> {
+export async function apiFetch<T>(path: string, options: FetchOptions = {}): Promise<T> {
   const { token: explicitToken, ...fetchOptions } = options
   const token = explicitToken !== undefined ? explicitToken : getToken()
 

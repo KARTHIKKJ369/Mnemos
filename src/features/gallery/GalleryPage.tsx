@@ -230,7 +230,7 @@ export function GalleryPage() {
           className="flex-1 overflow-y-auto"
           totalCount={virtRows.length}
           endReached={endReached}
-          overscan={400}
+          overscan={800}
           itemContent={(index) => {
             const row = virtRows[index]
             if (!row) return null
@@ -251,3 +251,4 @@ export function GalleryPage() {
     </div>
   )
 }
+

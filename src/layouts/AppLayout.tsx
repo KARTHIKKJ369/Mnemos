@@ -1,17 +1,21 @@
 import { Outlet, Link, useRouter } from '@tanstack/react-router'
-import { AnimatePresence, motion } from 'motion/react'
+import { motion, AnimatePresence } from 'motion/react'
 import {
-  Images, Clock, Heart, Search, Trash2, Upload,
-  Monitor, Lock, Settings, RefreshCw, HardDrive,
+  Images,
+  Clock,
+  Heart,
+  Search,
+  Trash2,
+  Upload,
+  Monitor,
+  Lock,
+  Settings,
+  RefreshCw,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Toasts } from '@/components/ui/Toasts'
 import { useUploadStore } from '@/stores/upload'
-import { useHasStorage } from '@/hooks/useStorage'
 import { UploadQueue } from '@/features/upload/UploadQueue'
-import { FirstRunWizard } from '@/features/storage/FirstRunWizard'
-
-// ─── Nav link ─────────────────────────────────────────────────────────────────
 
 interface NavItem {
   to: string
@@ -22,8 +26,7 @@ interface NavItem {
 
 function NavLink({ to, label, icon, badge }: NavItem) {
   const router = useRouter()
-  const isActive =
-    router.state.location.pathname === to ||
+  const isActive = router.state.location.pathname === to ||
     (to !== '/' && router.state.location.pathname.startsWith(to))
 
   return (
@@ -46,44 +49,38 @@ function NavLink({ to, label, icon, badge }: NavItem) {
   )
 }
 
-// ─── Nav sections ─────────────────────────────────────────────────────────────
-
 const NAV_SECTIONS = [
   {
     items: [
-      { to: '/gallery',   label: 'Library',   icon: <Images size={15} /> },
-      { to: '/timeline',  label: 'Timeline',  icon: <Clock size={15} /> },
-      { to: '/search',    label: 'Search',    icon: <Search size={15} /> },
+      { to: '/gallery', label: 'Library', icon: <Images size={15} /> },
+      { to: '/timeline', label: 'Timeline', icon: <Clock size={15} /> },
+      { to: '/search', label: 'Search', icon: <Search size={15} /> },
     ],
   },
   {
     label: 'Collections',
     items: [
       { to: '/favorites', label: 'Favorites', icon: <Heart size={15} /> },
-      { to: '/trash',     label: 'Trash',     icon: <Trash2 size={15} /> },
+      { to: '/trash', label: 'Trash', icon: <Trash2 size={15} /> },
     ],
   },
   {
     label: 'System',
     items: [
-      { to: '/sync',     label: 'Sync',     icon: <RefreshCw size={15} /> },
-      { to: '/devices',  label: 'Devices',  icon: <Monitor size={15} /> },
-      { to: '/storage',  label: 'Storage',  icon: <HardDrive size={15} /> },
-      { to: '/vaults',   label: 'Vaults',   icon: <Lock size={15} /> },
+      { to: '/sync', label: 'Sync', icon: <RefreshCw size={15} /> },
+      { to: '/devices', label: 'Devices', icon: <Monitor size={15} /> },
+      { to: '/vaults', label: 'Vaults', icon: <Lock size={15} /> },
       { to: '/settings', label: 'Settings', icon: <Settings size={15} /> },
     ],
   },
 ]
 
-// ─── App layout ───────────────────────────────────────────────────────────────
-
 export function AppLayout() {
-  const { isOpen, setOpen, activeCount } = useUploadStore()
-  const { hasStorage, isLoading: storageLoading } = useHasStorage()
+  const { queue, isOpen, setOpen } = useUploadStore()
+  const activeUploads = queue.filter(
+    (i) => i.status === 'uploading' || i.status === 'hashing' || i.status === 'checking',
+  ).length
 
-  const active = activeCount()
-
-  // Drop anywhere to open upload queue
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault()
     const files = Array.from(e.dataTransfer.files)
@@ -92,16 +89,13 @@ export function AppLayout() {
     }
   }
 
-  // First-run: no storage configured → show wizard instead of the app shell
-  if (!storageLoading && !hasStorage) {
-    return <FirstRunWizard />
-  }
+  const handleDragOver = (e: React.DragEvent) => e.preventDefault()
 
   return (
     <div
       className="flex h-screen bg-[--color-surface-base] overflow-hidden"
       onDrop={handleDrop}
-      onDragOver={(e) => e.preventDefault()}
+      onDragOver={handleDragOver}
     >
       {/* ── Sidebar ── */}
       <aside className="w-56 flex-shrink-0 flex flex-col border-r border-[--color-border-subtle] py-4">
@@ -138,7 +132,9 @@ export function AppLayout() {
         {/* Upload trigger */}
         <div className="px-2 mt-4">
           <button
-            onClick={() => setOpen(true)}
+            onClick={() => {
+              setOpen(true)
+            }}
             className={cn(
               'w-full flex items-center gap-2.5 px-3 h-8 rounded-[--radius-md] text-sm',
               'text-[--color-text-secondary] hover:bg-[--color-surface-overlay]',
@@ -148,8 +144,8 @@ export function AppLayout() {
           >
             <Upload size={15} className="opacity-70" />
             <span className="flex-1 text-left">Upload</span>
-            {active > 0 && (
-              <span className="text-xs text-[--color-warning] tabular-nums">{active}</span>
+            {activeUploads > 0 && (
+              <span className="text-xs text-[--color-warning] tabular-nums">{activeUploads}</span>
             )}
           </button>
         </div>
@@ -176,8 +172,9 @@ export function AppLayout() {
         )}
       </AnimatePresence>
 
-      {/* ── Toast stack ── */}
+      {/* ── Toasts ── */}
       <Toasts />
     </div>
   )
 }
+

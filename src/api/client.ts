@@ -11,10 +11,8 @@ import type {
   VaultCreateResponse,
   VaultType,
 } from '@/types'
-// Read session directly from Zustand store — no localStorage parsing, always correct
-import { useAuthStore } from '@/stores/auth'
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
+// ─── Base fetcher ─────────────────────────────────────────────────────────────
 
 export class APIClientError extends Error {
   constructor(
@@ -27,17 +25,20 @@ export class APIClientError extends Error {
   }
 }
 
-export function getBaseURL(): string {
-  const serverUrl = useAuthStore.getState().session?.serverUrl
-  if (serverUrl) return serverUrl.replace(/\/+$/, '')
-  return (import.meta.env.VITE_API_URL as string | undefined) ?? 'http://127.0.0.1:8080'
+function getBaseURL(): string {
+  return (import.meta.env.VITE_API_URL as string | undefined) ?? '/api'
 }
 
-export function getToken(): string | null {
-  return useAuthStore.getState().session?.authToken ?? null
+function getToken(): string | null {
+  try {
+    const raw = localStorage.getItem('mnemos_session')
+    if (!raw) return null
+    const session = JSON.parse(raw) as { authToken?: string }
+    return session.authToken ?? null
+  } catch {
+    return null
+  }
 }
-
-// ─── Core fetcher ─────────────────────────────────────────────────────────────
 
 interface FetchOptions extends RequestInit {
   token?: string | null
@@ -53,7 +54,10 @@ export async function apiFetch<T>(path: string, options: FetchOptions = {}): Pro
     headers.set('Content-Type', 'application/json')
   }
 
-  const response = await fetch(`${getBaseURL()}${path}`, { ...fetchOptions, headers })
+  const response = await fetch(`${getBaseURL()}${path}`, {
+    ...fetchOptions,
+    headers,
+  })
 
   if (!response.ok) {
     let code = 'unknown_error'
@@ -62,7 +66,9 @@ export async function apiFetch<T>(path: string, options: FetchOptions = {}): Pro
       const body = (await response.json()) as { code?: string; message?: string }
       code = body.code ?? code
       message = body.message ?? message
-    } catch { /* ignore */ }
+    } catch {
+      // ignore parse failure
+    }
     throw new APIClientError(response.status, code, message)
   }
 
@@ -70,16 +76,17 @@ export async function apiFetch<T>(path: string, options: FetchOptions = {}): Pro
   return response.json() as Promise<T>
 }
 
-// ─── Auth ─────────────────────────────────────────────────────────────────────
+// ─── Auth / Device Registration ───────────────────────────────────────────────
 
 export async function registerDevice(
   name: string,
   deviceType: DeviceType,
+  token?: string,
 ): Promise<DeviceRegistration> {
   return apiFetch<DeviceRegistration>('/devices/register', {
     method: 'POST',
     body: JSON.stringify({ name, device_type: deviceType }),
-    token: null,
+    token: token ?? null,
   })
 }
 
@@ -89,7 +96,7 @@ export async function getHealth(): Promise<{ status: string }> {
   return apiFetch<{ status: string }>('/health', { token: null })
 }
 
-// ─── File existence ───────────────────────────────────────────────────────────
+// ─── File existence (dedup) ───────────────────────────────────────────────────
 
 export async function checkFileExists(hash: string): Promise<ExistenceResult> {
   return apiFetch<ExistenceResult>(`/files/exists?hash=${encodeURIComponent(hash)}`)
@@ -99,7 +106,6 @@ export async function checkFileExists(hash: string): Promise<ExistenceResult> {
 
 export async function uploadFile(
   file: File,
-  storageId: string | undefined,
   onProgress?: (percent: number) => void,
 ): Promise<UploadResponse> {
   return new Promise<UploadResponse>((resolve, reject) => {
@@ -111,7 +117,6 @@ export async function uploadFile(
 
     const formData = new FormData()
     formData.append('file', file)
-    if (storageId) formData.append('storage_id', storageId)
 
     const xhr = new XMLHttpRequest()
     xhr.open('POST', `${getBaseURL()}/upload`)
@@ -125,8 +130,11 @@ export async function uploadFile(
 
     xhr.onload = () => {
       if (xhr.status >= 200 && xhr.status < 300) {
-        try { resolve(JSON.parse(xhr.responseText) as UploadResponse) }
-        catch { reject(new APIClientError(500, 'parse_error', 'Failed to parse upload response')) }
+        try {
+          resolve(JSON.parse(xhr.responseText) as UploadResponse)
+        } catch {
+          reject(new APIClientError(500, 'parse_error', 'Failed to parse upload response'))
+        }
       } else {
         try {
           const body = JSON.parse(xhr.responseText) as { code?: string; message?: string }
@@ -139,6 +147,7 @@ export async function uploadFile(
 
     xhr.onerror = () => reject(new APIClientError(0, 'network_error', 'Network error during upload'))
     xhr.onabort = () => reject(new APIClientError(0, 'aborted', 'Upload aborted'))
+
     xhr.send(formData)
   })
 }
@@ -147,17 +156,19 @@ export async function uploadFile(
 
 export async function searchMedia(params: MediaSearchParams = {}): Promise<MediaSearchResponse> {
   const query = new URLSearchParams()
-  if (params.query)               query.set('query', params.query)
-  if (params.mime_type)           query.set('mime_type', params.mime_type)
-  if (params.from)                query.set('from', params.from)
-  if (params.to)                  query.set('to', params.to)
+
+  if (params.query) query.set('query', params.query)
+  if (params.mime_type) query.set('mime_type', params.mime_type)
+  if (params.from) query.set('from', params.from)
+  if (params.to) query.set('to', params.to)
   if (params.favorite !== undefined) query.set('favorite', String(params.favorite))
   if (params.has_thumbnail !== undefined) query.set('has_thumbnail', String(params.has_thumbnail))
-  if (params.has_preview !== undefined)   query.set('has_preview', String(params.has_preview))
-  if (params.limit !== undefined)  query.set('limit', String(params.limit))
+  if (params.has_preview !== undefined) query.set('has_preview', String(params.has_preview))
+  if (params.limit !== undefined) query.set('limit', String(params.limit))
   if (params.offset !== undefined) query.set('offset', String(params.offset))
-  if (params.sort)                 query.set('sort', params.sort)
-  if (params.order)                query.set('order', params.order)
+  if (params.sort) query.set('sort', params.sort)
+  if (params.order) query.set('order', params.order)
+
   const qs = query.toString()
   return apiFetch<MediaSearchResponse>(`/media${qs ? `?${qs}` : ''}`)
 }
@@ -178,10 +189,18 @@ export async function deleteMedia(id: string): Promise<void> {
   return apiFetch<void>(`/media/${encodeURIComponent(id)}`, { method: 'DELETE' })
 }
 
-export async function fetchMediaBlob(
-  id: string,
-  type: 'original' | 'thumbnail' | 'preview',
-): Promise<string> {
+/** Build URL for media assets (no fetch — used in <img> src) */
+export function getMediaURL(id: string, type: 'original' | 'thumbnail' | 'preview'): string {
+  const token = getToken()
+  const base = `${getBaseURL()}/media/${encodeURIComponent(id)}/${type}`
+  // We can't easily set headers on img tags, so we use query param auth fallback
+  // The backend uses bearer token via header, so we need object URLs for <img>
+  // For thumbnails, we'll use a token query approach or a proxy component
+  return token ? `${base}?_t=${encodeURIComponent(token)}` : base
+}
+
+/** Fetch a media blob with auth (for use with object URLs in <img>) */
+export async function fetchMediaBlob(id: string, type: 'original' | 'thumbnail' | 'preview'): Promise<string> {
   const token = getToken()
   const response = await fetch(`${getBaseURL()}/media/${encodeURIComponent(id)}/${type}`, {
     headers: token ? { Authorization: `Bearer ${token}` } : {},
@@ -216,3 +235,4 @@ export async function createVault(type: VaultType): Promise<VaultCreateResponse>
     body: JSON.stringify({ type }),
   })
 }
+

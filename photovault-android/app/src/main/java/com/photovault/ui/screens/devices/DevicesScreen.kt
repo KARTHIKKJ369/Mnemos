@@ -7,8 +7,10 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -17,6 +19,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -30,10 +33,9 @@ import androidx.compose.material.icons.filled.Laptop
 import androidx.compose.material.icons.filled.PhoneAndroid
 import androidx.compose.material.icons.filled.PhoneIphone
 import androidx.compose.material.icons.filled.PhotoLibrary
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -51,15 +53,19 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import coil.compose.AsyncImage
+import coil.request.ImageRequest
 import com.photovault.PhotoVaultApplication
 import com.photovault.data.model.DeviceItem
+import com.photovault.data.model.MediaItem
 import com.photovault.ui.components.ButtonVariant
-import com.photovault.ui.components.FrameHeroHeader
 import com.photovault.ui.components.HapticHelper
 import com.photovault.ui.components.MnemosButton
 import com.photovault.ui.components.MnemosCard
@@ -74,15 +80,21 @@ import com.photovault.ui.theme.FrameGray900
 import com.photovault.ui.theme.FrameSurface
 import com.photovault.ui.theme.FrameWhite
 import com.photovault.ui.theme.MnemosType
-import com.photovault.ui.theme.RobotoMonoFontFamily
 import com.photovault.ui.theme.SignalRed
 import com.photovault.ui.theme.SignalRedSubtle
-import com.photovault.ui.theme.SpaceGroteskFontFamily
 import kotlinx.coroutines.launch
+
+private fun formatBytes(bytes: Long): String {
+    if (bytes <= 0) return "0 B"
+    val units = arrayOf("B", "KB", "MB", "GB", "TB")
+    val digitGroups = (Math.log10(bytes.toDouble()) / Math.log10(1024.0)).toInt().coerceIn(0, units.size - 1)
+    return String.format("%.1f %s", bytes / Math.pow(1024.0, digitGroups.toDouble()), units[digitGroups])
+}
 
 @Composable
 fun DevicesScreen(
-    onNavigateToGalleryWithDevice: (deviceId: String, deviceName: String) -> Unit
+    onNavigateToGalleryWithDevice: (deviceId: String, deviceName: String) -> Unit,
+    onMediaSelected: (fileId: String, currentMediaList: List<MediaItem>) -> Unit = { _, _ -> }
 ) {
     val app = PhotoVaultApplication.instance
     val context = LocalContext.current
@@ -90,9 +102,11 @@ fun DevicesScreen(
     val scope = rememberCoroutineScope()
 
     val currentDeviceId by app.preferenceStore.deviceId.collectAsState()
+    val downloadedFileIds by app.preferenceStore.downloadedFileIds.collectAsState()
 
     var devices by remember { mutableStateOf<List<DeviceItem>>(emptyList()) }
-    var deviceMediaCounts by remember { mutableStateOf<Map<String, Int>>(emptyMap()) }
+    var allMediaList by remember { mutableStateOf<List<MediaItem>>(emptyList()) }
+    var deviceMediaMap by remember { mutableStateOf<Map<String, List<MediaItem>>>(emptyMap()) }
     var isLoading by remember { mutableStateOf(true) }
     var downloadingDeviceId by remember { mutableStateOf<String?>(null) }
     var downloadProgress by remember { mutableStateOf<Pair<Int, Int>?>(null) }
@@ -102,18 +116,20 @@ fun DevicesScreen(
         isLoading = true
         scope.launch {
             val result = app.apiClient.fetchDevices()
-            val allMediaResult = app.apiClient.fetchMedia(limit = 1000)
+            val allMediaResult = app.apiClient.fetchAllMedia()
             isLoading = false
             result.onSuccess { devList ->
                 devices = devList
             }
             allMediaResult.onSuccess { mediaList ->
-                val counts = mutableMapOf<String, Int>()
+                allMediaList = mediaList
+                val grouped = mutableMapOf<String, MutableList<MediaItem>>()
                 for (item in mediaList) {
-                    val id = item.uploadedByDeviceId ?: "unknown"
-                    counts[id] = (counts[id] ?: 0) + 1
+                    val id = item.uploadedByDeviceId?.trim().orEmpty()
+                    val key = if (id.isNotEmpty()) id else "unknown"
+                    grouped.getOrPut(key) { mutableListOf() }.add(item)
                 }
-                deviceMediaCounts = counts
+                deviceMediaMap = grouped
             }
         }
     }
@@ -122,22 +138,43 @@ fun DevicesScreen(
         loadDevices()
     }
 
-    fun downloadAllFromDevice(device: DeviceItem) {
+    val totalMediaCount = remember(allMediaList) { allMediaList.size }
+    val totalVaultBytes = remember(allMediaList) { allMediaList.sumOf { it.sizeBytes } }
+    val totalUnsavedCount = remember(allMediaList, downloadedFileIds) {
+        allMediaList.count { !downloadedFileIds.contains(it.fileId) }
+    }
+
+    fun downloadFromDevice(device: DeviceItem, onlyUnsaved: Boolean) {
         scope.launch {
             HapticHelper.performClick(view)
             downloadingDeviceId = device.id
-            val mediaResult = app.apiClient.fetchMedia(deviceId = device.id, limit = 1000)
+            val mediaResult = app.apiClient.fetchAllMediaForDevice(device.id)
             mediaResult.onSuccess { list ->
-                val total = list.size
+                val toDownload = if (onlyUnsaved) {
+                    list.filter { !app.preferenceStore.isFileDownloaded(it.fileId) }
+                } else {
+                    list
+                }
+
+                if (toDownload.isEmpty()) {
+                    downloadingDeviceId = null
+                    downloadProgress = null
+                    Toast.makeText(context, "All files from ${device.name} are already downloaded", Toast.LENGTH_SHORT).show()
+                    return@onSuccess
+                }
+
+                val total = toDownload.size
                 var completed = 0
                 downloadProgress = 0 to total
-                for (item in list) {
-                    app.apiClient.downloadMediaToGallery(
+                for (item in toDownload) {
+                    val res = app.apiClient.downloadMediaToGallery(
                         fileId = item.fileId,
                         filename = item.filename,
                         mimeType = item.mimeType
                     )
-                    completed++
+                    if (res.isSuccess) {
+                        completed++
+                    }
                     downloadProgress = completed to total
                 }
                 downloadingDeviceId = null
@@ -176,7 +213,7 @@ fun DevicesScreen(
                 .fillMaxSize()
                 .statusBarsPadding()
         ) {
-            // Top Bar: FRAME Hero Header
+            // Top Bar: Clean Minimalist FRAME Header
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -191,14 +228,14 @@ fun DevicesScreen(
                     ) {
                         RedDotIndicator(size = 7.dp)
                         Text(
-                            text = String.format("%02d CLUSTER NODES // ONLINE", devices.size),
+                            text = "NODES",
                             style = MnemosType.Headline28,
                             color = FrameWhite
                         )
                     }
-                    Spacer(modifier = Modifier.height(3.dp))
+                    Spacer(modifier = Modifier.height(2.dp))
                     Text(
-                        text = "BROWSE CAPTURED MEDIA & REMOTE HARDWARE NODES",
+                        text = "${devices.size} CLUSTER NODES ONLINE",
                         style = MnemosType.Mono11,
                         color = FrameGray500
                     )
@@ -217,7 +254,7 @@ fun DevicesScreen(
                 }
             }
 
-            Spacer(modifier = Modifier.height(6.dp))
+            Spacer(modifier = Modifier.height(4.dp))
 
             if (isLoading && devices.isEmpty()) {
                 Box(
@@ -231,28 +268,168 @@ fun DevicesScreen(
                     modifier = Modifier
                         .fillMaxSize()
                         .padding(horizontal = 16.dp),
-                    verticalArrangement = Arrangement.spacedBy(10.dp),
-                    contentPadding = androidx.compose.foundation.layout.PaddingValues(bottom = 90.dp, top = 4.dp)
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                    contentPadding = PaddingValues(bottom = 90.dp, top = 4.dp)
                 ) {
+                    // Item 1: Cluster Status Overview Grid
+                    item(key = "cluster_overview") {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            ClusterStatTile(
+                                title = "NODES",
+                                value = "${devices.size}",
+                                subtitle = "ONLINE",
+                                modifier = Modifier.weight(1f)
+                            )
+                            ClusterStatTile(
+                                title = "VAULT",
+                                value = "$totalMediaCount",
+                                subtitle = "TOTAL FILES",
+                                modifier = Modifier.weight(1f)
+                            )
+                            ClusterStatTile(
+                                title = "STORAGE",
+                                value = formatBytes(totalVaultBytes),
+                                subtitle = "PRESERVED",
+                                modifier = Modifier.weight(1f)
+                            )
+                            ClusterStatTile(
+                                title = "SYNC",
+                                value = if (totalUnsavedCount == 0) "SYNCED" else "$totalUnsavedCount",
+                                subtitle = if (totalUnsavedCount == 0) "100% OK" else "PENDING",
+                                valueColor = if (totalUnsavedCount == 0) FrameWhite else SignalRed,
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
+                    }
+
+                    // Item 2: Storage Distribution Bar
+                    if (devices.isNotEmpty() && totalVaultBytes > 0) {
+                        item(key = "storage_distribution") {
+                            MnemosCard(modifier = Modifier.fillMaxWidth()) {
+                                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Text(
+                                            text = "STORAGE DISTRIBUTION",
+                                            style = MnemosType.Mono11.copy(fontWeight = FontWeight.Bold),
+                                            color = FrameGray300
+                                        )
+                                        Text(
+                                            text = formatBytes(totalVaultBytes),
+                                            style = MnemosType.Mono11,
+                                            color = FrameGray500
+                                        )
+                                    }
+
+                                    // Segmented Bar
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .height(6.dp)
+                                            .clip(RoundedCornerShape(3.dp))
+                                            .background(FrameGray900)
+                                    ) {
+                                        devices.forEachIndexed { index, dev ->
+                                            val devList = deviceMediaMap[dev.id] ?: emptyList()
+                                            val devBytes = devList.sumOf { it.sizeBytes }
+                                            val weight = if (totalVaultBytes > 0) (devBytes.toFloat() / totalVaultBytes.toFloat()).coerceAtLeast(0.02f) else 1f
+                                            val color = when (index % 4) {
+                                                0 -> SignalRed
+                                                1 -> FrameWhite
+                                                2 -> FrameGray300
+                                                else -> FrameGray500
+                                            }
+                                            Box(
+                                                modifier = Modifier
+                                                    .weight(weight)
+                                                    .fillMaxSize()
+                                                    .background(color)
+                                            )
+                                        }
+                                    }
+
+                                    // Dot Legend Row
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                                    ) {
+                                        devices.forEachIndexed { index, dev ->
+                                            val devList = deviceMediaMap[dev.id] ?: emptyList()
+                                            val devBytes = devList.sumOf { it.sizeBytes }
+                                            val color = when (index % 4) {
+                                                0 -> SignalRed
+                                                1 -> FrameWhite
+                                                2 -> FrameGray300
+                                                else -> FrameGray500
+                                            }
+                                            Row(
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                            ) {
+                                                Box(
+                                                    modifier = Modifier
+                                                        .size(5.dp)
+                                                        .clip(CircleShape)
+                                                        .background(color)
+                                                )
+                                                Text(
+                                                    text = "${dev.name.take(10).uppercase()} (${formatBytes(devBytes)})",
+                                                    style = MnemosType.Mono11.copy(fontSize = 9.sp),
+                                                    color = FrameGray300
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    // Item 3: Header for Nodes List
+                    item(key = "nodes_header") {
+                        Text(
+                            text = "CLUSTER HARDWARE INSTANCES",
+                            style = MnemosType.Mono11.copy(fontWeight = FontWeight.Bold),
+                            color = FrameGray500,
+                            modifier = Modifier.padding(top = 4.dp)
+                        )
+                    }
+
+                    // Node Cards
                     items(devices, key = { it.id }) { device ->
                         val isCurrent = device.id == currentDeviceId
-                        val itemCount = deviceMediaCounts[device.id] ?: 0
-                        val isDownloading = downloadingDeviceId == device.id
                         val isAdmin = device.name.contains("Admin", ignoreCase = true) || device.deviceType.lowercase() == "mac"
+                        val mediaList = deviceMediaMap[device.id]
+                            ?: deviceMediaMap.entries.firstOrNull { it.key.equals(device.id, ignoreCase = true) }?.value
+                            ?: (if (isAdmin) (deviceMediaMap["unknown"] ?: emptyList()) + (deviceMediaMap[""] ?: emptyList()) else emptyList())
+                        val isDownloading = downloadingDeviceId == device.id
 
                         DeviceNodeCard(
                             device = device,
+                            mediaList = mediaList,
+                            downloadedFileIds = downloadedFileIds,
                             isCurrentDevice = isCurrent,
                             isAdmin = isAdmin,
-                            mediaCount = itemCount,
                             isDownloading = isDownloading,
                             downloadProgress = if (isDownloading) downloadProgress else null,
                             onBrowseMedia = {
                                 HapticHelper.performClick(view)
                                 onNavigateToGalleryWithDevice(device.id, device.name)
                             },
+                            onMediaSelected = { fileId ->
+                                onMediaSelected(fileId, mediaList)
+                            },
+                            onSyncPending = {
+                                downloadFromDevice(device, onlyUnsaved = true)
+                            },
                             onDownloadAll = {
-                                downloadAllFromDevice(device)
+                                downloadFromDevice(device, onlyUnsaved = false)
                             },
                             onDeleteDevice = {
                                 HapticHelper.vibrateWarning(context)
@@ -306,17 +483,69 @@ fun DevicesScreen(
 }
 
 @Composable
+private fun ClusterStatTile(
+    title: String,
+    value: String,
+    subtitle: String,
+    modifier: Modifier = Modifier,
+    valueColor: Color = FrameWhite
+) {
+    Box(
+        modifier = modifier
+            .clip(RoundedCornerShape(6.dp))
+            .background(FrameSurface)
+            .border(1.dp, FrameBorder, RoundedCornerShape(6.dp))
+            .padding(vertical = 10.dp, horizontal = 8.dp)
+    ) {
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(2.dp)
+        ) {
+            Text(
+                text = title,
+                style = MnemosType.Mono11.copy(fontSize = 8.sp, fontWeight = FontWeight.Bold),
+                color = FrameGray500
+            )
+            Text(
+                text = value,
+                style = MnemosType.Headline28.copy(fontSize = 15.sp, fontWeight = FontWeight.Bold),
+                color = valueColor
+            )
+            Text(
+                text = subtitle,
+                style = MnemosType.Mono11.copy(fontSize = 8.sp),
+                color = FrameGray500
+            )
+        }
+    }
+}
+
+@Composable
 private fun DeviceNodeCard(
     device: DeviceItem,
+    mediaList: List<MediaItem>,
+    downloadedFileIds: Set<String>,
     isCurrentDevice: Boolean,
     isAdmin: Boolean,
-    mediaCount: Int,
     isDownloading: Boolean,
     downloadProgress: Pair<Int, Int>?,
     onBrowseMedia: () -> Unit,
+    onMediaSelected: (fileId: String) -> Unit,
+    onSyncPending: () -> Unit,
     onDownloadAll: () -> Unit,
     onDeleteDevice: () -> Unit
 ) {
+    val context = LocalContext.current
+    val apiClient = PhotoVaultApplication.instance.apiClient
+
+    val totalCount = mediaList.size
+    val totalBytes = remember(mediaList) { mediaList.sumOf { it.sizeBytes } }
+    val photoCount = remember(mediaList) { mediaList.count { !it.isVideo } }
+    val videoCount = remember(mediaList) { mediaList.count { it.isVideo } }
+    val downloadedCount = mediaList.count { downloadedFileIds.contains(it.fileId) }
+    val unsavedCount = totalCount - downloadedCount
+
     val icon = when (device.deviceType.lowercase()) {
         "mac", "desktop" -> Icons.Default.Laptop
         "ios" -> Icons.Default.PhoneIphone
@@ -333,6 +562,7 @@ private fun DeviceNodeCard(
             modifier = Modifier.fillMaxWidth(),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
+            // Header: Device Icon, Name, Type, Delete button
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
@@ -340,7 +570,7 @@ private fun DeviceNodeCard(
             ) {
                 Box(
                     modifier = Modifier
-                        .size(36.dp)
+                        .size(38.dp)
                         .clip(RoundedCornerShape(6.dp))
                         .background(if (isCurrentDevice) SignalRedSubtle else FrameGray900)
                         .border(1.dp, if (isCurrentDevice) SignalRed else FrameBorder, RoundedCornerShape(6.dp)),
@@ -350,7 +580,7 @@ private fun DeviceNodeCard(
                         imageVector = icon,
                         contentDescription = null,
                         tint = if (isCurrentDevice) SignalRed else FrameWhite,
-                        modifier = Modifier.size(18.dp)
+                        modifier = Modifier.size(20.dp)
                     )
                 }
 
@@ -384,7 +614,7 @@ private fun DeviceNodeCard(
                     Spacer(modifier = Modifier.height(2.dp))
 
                     Text(
-                        text = "${device.deviceType.uppercase()} // $mediaCount ITEMS IN VAULT",
+                        text = "${device.deviceType.uppercase()} // $photoCount PHOTOS • $videoCount VIDEOS • ${formatBytes(totalBytes)}",
                         style = MnemosType.Mono11,
                         color = FrameGray500
                     )
@@ -402,6 +632,104 @@ private fun DeviceNodeCard(
                             tint = SignalRed,
                             modifier = Modifier.size(16.dp)
                         )
+                    }
+                }
+            }
+
+            // Sync Status Indicator
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(6.dp)
+                        .clip(CircleShape)
+                        .background(if (unsavedCount > 0) SignalRed else FrameGray500)
+                )
+                Text(
+                    text = if (unsavedCount > 0) "$unsavedCount PENDING LOCAL SYNC" else "ALL $totalCount ITEMS SAVED TO PHONE",
+                    style = MnemosType.Mono11.copy(fontSize = 10.sp, fontWeight = FontWeight.SemiBold),
+                    color = if (unsavedCount > 0) SignalRed else FrameGray500
+                )
+            }
+
+            // Recent Media Preview Strip (Horizontal row of 5 latest items)
+            if (mediaList.isNotEmpty()) {
+                val previewItems = remember(mediaList) { mediaList.take(5) }
+                LazyRow(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    items(previewItems, key = { it.fileId }) { item ->
+                        val thumbUrl = if (item.thumbnailAvailable) apiClient.getThumbnailUrl(item.fileId) else apiClient.getOriginalUrl(item.fileId)
+                        Box(
+                            modifier = Modifier
+                                .size(62.dp)
+                                .clip(RoundedCornerShape(6.dp))
+                                .border(1.dp, FrameBorder, RoundedCornerShape(6.dp))
+                                .clickable { onMediaSelected(item.fileId) }
+                        ) {
+                            AsyncImage(
+                                model = ImageRequest.Builder(context)
+                                    .data(thumbUrl)
+                                    .crossfade(150)
+                                    .build(),
+                                contentDescription = item.filename,
+                                contentScale = ContentScale.Crop,
+                                modifier = Modifier.fillMaxSize()
+                            )
+
+                            if (item.isVideo) {
+                                Box(
+                                    modifier = Modifier
+                                        .align(Alignment.BottomEnd)
+                                        .padding(2.dp)
+                                        .size(14.dp)
+                                        .clip(CircleShape)
+                                        .background(FrameBlack.copy(alpha = 0.8f)),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.PlayArrow,
+                                        contentDescription = null,
+                                        tint = FrameWhite,
+                                        modifier = Modifier.size(8.dp)
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    if (mediaList.size > 5) {
+                        item(key = "more_pill") {
+                            Box(
+                                modifier = Modifier
+                                    .size(62.dp)
+                                    .clip(RoundedCornerShape(6.dp))
+                                    .background(FrameGray900)
+                                    .border(1.dp, FrameBorder, RoundedCornerShape(6.dp))
+                                    .clickable { onBrowseMedia() },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Column(
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                    verticalArrangement = Arrangement.Center
+                                ) {
+                                    Text(
+                                        text = "+${mediaList.size - 5}",
+                                        style = MnemosType.Mono12.copy(fontWeight = FontWeight.Bold),
+                                        color = FrameWhite
+                                    )
+                                    Text(
+                                        text = "MORE",
+                                        style = MnemosType.Mono11.copy(fontSize = 8.sp),
+                                        color = FrameGray500
+                                    )
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -431,21 +759,32 @@ private fun DeviceNodeCard(
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 MnemosButton(
-                    text = "BROWSE MEDIA ($mediaCount)",
+                    text = "BROWSE ($totalCount)",
                     onClick = onBrowseMedia,
                     modifier = Modifier.weight(1f),
                     variant = ButtonVariant.PRIMARY,
                     icon = Icons.Default.PhotoLibrary
                 )
 
-                MnemosButton(
-                    text = if (isDownloading) "SAVING…" else "DOWNLOAD",
-                    onClick = onDownloadAll,
-                    enabled = !isDownloading && mediaCount > 0,
-                    modifier = Modifier.weight(1f),
-                    variant = ButtonVariant.SECONDARY,
-                    icon = Icons.Default.CloudDownload
-                )
+                if (unsavedCount > 0) {
+                    MnemosButton(
+                        text = if (isDownloading) "SAVING…" else "SYNC ($unsavedCount)",
+                        onClick = onSyncPending,
+                        enabled = !isDownloading,
+                        modifier = Modifier.weight(1f),
+                        variant = ButtonVariant.SECONDARY,
+                        icon = Icons.Default.CloudDownload
+                    )
+                } else {
+                    MnemosButton(
+                        text = if (isDownloading) "SAVING…" else "DOWNLOAD ALL",
+                        onClick = onDownloadAll,
+                        enabled = !isDownloading && totalCount > 0,
+                        modifier = Modifier.weight(1f),
+                        variant = ButtonVariant.SECONDARY,
+                        icon = Icons.Default.CloudDownload
+                    )
+                }
             }
         }
     }

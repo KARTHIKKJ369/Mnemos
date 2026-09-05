@@ -1,7 +1,11 @@
 package com.photovault.ui.screens.gallery
 
+import android.net.Uri
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
@@ -38,6 +42,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Sort
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.CloudDownload
 import androidx.compose.material.icons.filled.Delete
@@ -47,6 +52,7 @@ import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.ViewModule
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ModalBottomSheet
@@ -101,6 +107,8 @@ import com.photovault.ui.theme.MnemosType
 import com.photovault.ui.theme.SignalRed
 import com.photovault.ui.theme.SpaceGroteskFontFamily
 import kotlinx.coroutines.launch
+import java.io.File
+import java.io.FileOutputStream
 
 enum class SortOption(val label: String, val sortField: String, val sortOrder: String) {
     NEWEST("Newest First", "taken_at", "desc"),
@@ -140,11 +148,24 @@ fun parseMonthYear(dateStr: String?): String {
 
 private fun Double.format(digits: Int) = String.format("%.${digits}f", this)
 
+private fun copyUriToTempFile(context: android.content.Context, uri: Uri): File? {
+    return try {
+        val inputStream = context.contentResolver.openInputStream(uri) ?: return null
+        val tempFile = File.createTempFile("vault_upload_", ".tmp", context.cacheDir)
+        FileOutputStream(tempFile).use { output ->
+            inputStream.copyTo(output)
+        }
+        tempFile
+    } catch (e: Exception) {
+        null
+    }
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun GalleryScreen(
     initialDeviceId: String? = null,
-    onMediaSelected: (fileId: String) -> Unit
+    onMediaSelected: (fileId: String, currentMediaList: List<MediaItem>) -> Unit
 ) {
     val app = PhotoVaultApplication.instance
     val context = LocalContext.current
@@ -154,6 +175,7 @@ fun GalleryScreen(
 
     val columns by app.preferenceStore.gridColumns.collectAsState()
     val currentDeviceId by app.preferenceStore.deviceId.collectAsState()
+    val downloadedFileIds by app.preferenceStore.downloadedFileIds.collectAsState()
 
     var mediaList by remember { mutableStateOf<List<MediaItem>>(emptyList()) }
     var devices by remember { mutableStateOf<List<DeviceItem>>(emptyList()) }
@@ -171,6 +193,10 @@ fun GalleryScreen(
     var selectedFileIds by remember { mutableStateOf<Set<String>>(emptySet()) }
     var isBatchDownloading by remember { mutableStateOf(false) }
     var batchProgress by remember { mutableStateOf<Pair<Int, Int>?>(null) }
+
+    val unsavedSelectedCount = remember(selectedFileIds, downloadedFileIds) {
+        selectedFileIds.count { !downloadedFileIds.contains(it) }
+    }
 
     // Back button in selection mode exits selection
     BackHandler(enabled = isSelectionMode) {
@@ -206,13 +232,42 @@ fun GalleryScreen(
         }
     }
 
+    // Upload State & Photo Picker
+    var isUploading by remember { mutableStateOf(false) }
+    var uploadProgress by remember { mutableStateOf<Pair<Int, Int>?>(null) }
+
+    val photoPickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.PickMultipleVisualMedia()
+    ) { uris: List<Uri> ->
+        if (uris.isNotEmpty()) {
+            isUploading = true
+            uploadProgress = Pair(0, uris.size)
+            scope.launch {
+                var uploadedCount = 0
+                for ((index, uri) in uris.withIndex()) {
+                    uploadProgress = Pair(index + 1, uris.size)
+                    val file = copyUriToTempFile(context, uri)
+                    if (file != null) {
+                        val mimeType = context.contentResolver.getType(uri) ?: "image/jpeg"
+                        val res = app.apiClient.uploadFile(file, mimeType)
+                        if (res.isSuccess) {
+                            uploadedCount++
+                        }
+                        file.delete()
+                    }
+                }
+                isUploading = false
+                uploadProgress = null
+                HapticHelper.vibrateSuccess(context)
+                Toast.makeText(context, "Uploaded $uploadedCount items to vault", Toast.LENGTH_SHORT).show()
+                loadData()
+            }
+        }
+    }
+
     LaunchedEffect(selectedTypeFilter, selectedDeviceFilter, currentSort, searchQuery) {
         loadData()
     }
-
-    // Calculate total vault storage used in GB
-    val totalBytes = remember(mediaList) { mediaList.sumOf { it.sizeBytes } }
-    val totalGB = remember(totalBytes) { (totalBytes / (1024.0 * 1024.0 * 1024.0)).format(1) }
 
     // Timeline grouping by Month & Year
     val timelineGroups = remember(mediaList, currentSort) {
@@ -239,9 +294,17 @@ fun GalleryScreen(
         }
     }
 
-    fun batchDownloadSelected() {
-        val toDownload = mediaList.filter { selectedFileIds.contains(it.fileId) }
-        if (toDownload.isEmpty()) return
+    fun batchDownloadSelected(onlyUnsaved: Boolean = false) {
+        val baseSelected = mediaList.filter { selectedFileIds.contains(it.fileId) }
+        val toDownload = if (onlyUnsaved) {
+            baseSelected.filter { !app.preferenceStore.isFileDownloaded(it.fileId) }
+        } else {
+            baseSelected
+        }
+        if (toDownload.isEmpty()) {
+            Toast.makeText(context, "All selected items are already downloaded", Toast.LENGTH_SHORT).show()
+            return
+        }
 
         isBatchDownloading = true
         batchProgress = Pair(0, toDownload.size)
@@ -299,7 +362,7 @@ fun GalleryScreen(
             .background(FrameBlack)
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
-            // Top Bar: FRAME // OS Header (🔴 135H 56M // 05 TITLES style)
+            // Top Bar: Clean Minimalist FRAME Header
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -362,14 +425,14 @@ fun GalleryScreen(
                                 ) {
                                     RedDotIndicator(size = 7.dp)
                                     Text(
-                                        text = "${mediaList.size} ITEMS // $totalGB GB",
+                                        text = "VAULT",
                                         style = MnemosType.Headline28,
                                         color = FrameWhite
                                     )
                                 }
-                                Spacer(modifier = Modifier.height(3.dp))
+                                Spacer(modifier = Modifier.height(2.dp))
                                 Text(
-                                    text = String.format("%02d NODES // %02d SYNCED // %02d OFFLINE", devices.size, devices.size, 0),
+                                    text = "${mediaList.size} ITEMS",
                                     style = MnemosType.Mono11,
                                     color = FrameGray500
                                 )
@@ -471,7 +534,7 @@ fun GalleryScreen(
                     ) {
                         Text("VAULT EMPTY", style = MnemosType.Headline28.copy(fontSize = 18.sp), color = FrameGray500)
                         Text(
-                            text = if (searchQuery.isNotEmpty()) "NO MATCHES FOR \"$searchQuery\"" else "CONNECT NODES OR SYNC CAMERA ROLL",
+                            text = if (searchQuery.isNotEmpty()) "NO MATCHES FOR \"$searchQuery\"" else "USE (+) TO UPLOAD PHOTOS & VIDEOS",
                             style = MnemosType.Mono11,
                             color = FrameGray500
                         )
@@ -482,7 +545,7 @@ fun GalleryScreen(
                     LazyVerticalGrid(
                         state = gridState,
                         columns = GridCells.Fixed(columns),
-                        contentPadding = PaddingValues(0.dp),
+                        contentPadding = PaddingValues(bottom = 72.dp),
                         horizontalArrangement = Arrangement.spacedBy(1.dp),
                         verticalArrangement = Arrangement.spacedBy(1.dp),
                         modifier = Modifier
@@ -523,7 +586,7 @@ fun GalleryScreen(
                                             toggleSelection(item.fileId)
                                         } else {
                                             HapticHelper.performClick(view)
-                                            onMediaSelected(item.fileId)
+                                            onMediaSelected(item.fileId, mediaList)
                                         }
                                     },
                                     onLongClick = {
@@ -536,42 +599,73 @@ fun GalleryScreen(
                             }
                         }
                     }
+                }
+            }
+        }
 
-                    // Fast Date Scrubber on the Right Edge
-                    if (timelineGroups.size > 1 && !isSelectionMode) {
-                        Column(
-                            modifier = Modifier
-                                .align(Alignment.CenterEnd)
-                                .padding(end = 4.dp)
-                                .clip(RoundedCornerShape(8.dp))
-                                .background(FrameBlack.copy(alpha = 0.88f))
-                                .border(0.5.dp, FrameBorder, RoundedCornerShape(8.dp))
-                                .padding(vertical = 6.dp, horizontal = 4.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.spacedBy(4.dp)
-                        ) {
-                            timelineGroups.take(8).forEach { group ->
-                                val label = group.monthYear.take(3).uppercase()
-                                Box(
-                                    modifier = Modifier
-                                        .clip(RoundedCornerShape(3.dp))
-                                        .clickable {
-                                            HapticHelper.performClick(view)
-                                            scope.launch {
-                                                gridState.animateScrollToItem(group.startIndex)
-                                            }
-                                        }
-                                        .padding(horizontal = 4.dp, vertical = 2.dp)
-                                ) {
-                                    Text(
-                                        text = label,
-                                        style = MnemosType.Mono11.copy(fontSize = 9.sp, fontWeight = FontWeight.Bold),
-                                        color = FrameGray300
-                                    )
-                                }
-                            }
-                        }
-                    }
+        // Floating Action Button for Manual Upload
+        if (!isSelectionMode) {
+            Box(
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .navigationBarsPadding()
+                    .padding(bottom = 16.dp, end = 16.dp)
+            ) {
+                FloatingActionButton(
+                    onClick = {
+                        HapticHelper.performClick(view)
+                        photoPickerLauncher.launch(
+                            PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageAndVideo)
+                        )
+                    },
+                    containerColor = FrameWhite,
+                    contentColor = FrameBlack,
+                    shape = CircleShape,
+                    modifier = Modifier
+                        .size(52.dp)
+                        .border(1.dp, FrameBorderLight, CircleShape)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Add,
+                        contentDescription = "Upload Media",
+                        tint = FrameBlack,
+                        modifier = Modifier.size(24.dp)
+                    )
+                }
+            }
+        }
+
+        // Uploading Progress Pill Banner
+        AnimatedVisibility(
+            visible = isUploading && uploadProgress != null,
+            enter = fadeIn() + slideInVertically { it },
+            exit = fadeOut() + slideOutVertically { it },
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .navigationBarsPadding()
+                .padding(bottom = 16.dp, start = 16.dp, end = 16.dp)
+        ) {
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(24.dp))
+                    .background(FrameSurface)
+                    .border(1.dp, FrameBorder, RoundedCornerShape(24.dp))
+                    .padding(horizontal = 16.dp, vertical = 10.dp)
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(14.dp),
+                        strokeWidth = 2.dp,
+                        color = SignalRed
+                    )
+                    Text(
+                        text = "STREAMING TO VAULT // ${uploadProgress?.first ?: 0} OF ${uploadProgress?.second ?: 0}",
+                        style = MnemosType.Mono12.copy(fontWeight = FontWeight.Bold),
+                        color = FrameWhite
+                    )
                 }
             }
         }
@@ -592,38 +686,64 @@ fun GalleryScreen(
                     .clip(RoundedCornerShape(8.dp))
                     .background(FrameSurface)
                     .border(1.dp, FrameBorder, RoundedCornerShape(8.dp))
-                    .padding(horizontal = 14.dp, vertical = 8.dp)
+                    .padding(horizontal = 12.dp, vertical = 8.dp)
             ) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(
-                        text = "${selectedFileIds.size} SELECTED",
-                        style = MnemosType.Mono12.copy(fontWeight = FontWeight.Bold),
-                        color = FrameWhite
-                    )
+                    Column {
+                        Text(
+                            text = "${selectedFileIds.size} SELECTED",
+                            style = MnemosType.Mono12.copy(fontWeight = FontWeight.Bold),
+                            color = FrameWhite
+                        )
+                        if (unsavedSelectedCount > 0 && unsavedSelectedCount < selectedFileIds.size) {
+                            Text(
+                                text = "$unsavedSelectedCount NOT SAVED",
+                                style = MnemosType.Mono11.copy(fontSize = 9.sp),
+                                color = SignalRed
+                            )
+                        }
+                    }
 
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
-                        // Download Primary CTA (Pure White)
-                        MnemosButton(
-                            text = if (isBatchDownloading) {
-                                batchProgress?.let { "${it.first}/${it.second}" } ?: "SAVING…"
-                            } else "DOWNLOAD",
-                            onClick = { batchDownloadSelected() },
-                            variant = ButtonVariant.PRIMARY,
-                            icon = if (!isBatchDownloading) Icons.Default.CloudDownload else null,
-                            isLoading = isBatchDownloading
-                        )
+                        if (unsavedSelectedCount > 0 && unsavedSelectedCount < selectedFileIds.size) {
+                            MnemosButton(
+                                text = if (isBatchDownloading) {
+                                    batchProgress?.let { "${it.first}/${it.second}" } ?: "SAVING…"
+                                } else "NOT SAVED ($unsavedSelectedCount)",
+                                onClick = { batchDownloadSelected(onlyUnsaved = true) },
+                                variant = ButtonVariant.PRIMARY,
+                                icon = if (!isBatchDownloading) Icons.Default.CloudDownload else null,
+                                isLoading = isBatchDownloading
+                            )
+                            MnemosButton(
+                                text = "ALL",
+                                onClick = { batchDownloadSelected(onlyUnsaved = false) },
+                                variant = ButtonVariant.SECONDARY,
+                                enabled = !isBatchDownloading
+                            )
+                        } else {
+                            MnemosButton(
+                                text = if (isBatchDownloading) {
+                                    batchProgress?.let { "${it.first}/${it.second}" } ?: "SAVING…"
+                                } else if (unsavedSelectedCount == 0) "RE-DOWNLOAD ALL" else "DOWNLOAD (${selectedFileIds.size})",
+                                onClick = { batchDownloadSelected(onlyUnsaved = false) },
+                                variant = ButtonVariant.PRIMARY,
+                                icon = if (!isBatchDownloading) Icons.Default.CloudDownload else null,
+                                isLoading = isBatchDownloading
+                            )
+                        }
 
                         // Favorite Action
                         IconButton(
                             onClick = { batchFavoriteSelected(true) },
-                            modifier = Modifier.size(42.dp)
+                            modifier = Modifier.size(36.dp)
                         ) {
                             Icon(Icons.Default.Favorite, contentDescription = "Favorite", tint = FrameWhite, modifier = Modifier.size(18.dp))
                         }
@@ -631,7 +751,7 @@ fun GalleryScreen(
                         // Trash Action (Signal Red)
                         IconButton(
                             onClick = { batchDeleteSelected() },
-                            modifier = Modifier.size(42.dp)
+                            modifier = Modifier.size(36.dp)
                         ) {
                             Icon(Icons.Default.Delete, contentDescription = "Delete", tint = SignalRed, modifier = Modifier.size(18.dp))
                         }

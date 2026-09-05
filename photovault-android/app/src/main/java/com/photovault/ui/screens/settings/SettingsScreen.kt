@@ -61,6 +61,9 @@ import com.photovault.ui.theme.SignalRed
 import com.photovault.ui.theme.SignalRedSubtle
 import java.io.File
 
+import androidx.compose.material.icons.filled.Sync
+import com.photovault.ui.components.MnemosSwitch
+
 @Composable
 fun SettingsScreen(
     onLogout: () -> Unit,
@@ -74,6 +77,7 @@ fun SettingsScreen(
 
     val serverUrl by app.preferenceStore.serverUrl.collectAsState()
     val deviceId by app.preferenceStore.deviceId.collectAsState()
+    val autoBackup by app.preferenceStore.autoBackup.collectAsState()
 
     var healthData by remember { mutableStateOf<HealthResponse?>(null) }
     var cacheSizeMb by remember { mutableStateOf(0L) }
@@ -100,8 +104,8 @@ fun SettingsScreen(
     ) {
         // FRAME Hero Header
         FrameHeroHeader(
-            title = "SYSTEM // TELEMETRY",
-            subtitle = "TAILSCALE NODE CONFIGURATION & SERVER HEALTH"
+            title = "SYSTEM",
+            subtitle = "CLUSTER CONFIGURATION & VAULT STATUS"
         )
 
         Spacer(modifier = Modifier.height(4.dp))
@@ -113,6 +117,23 @@ fun SettingsScreen(
                 .padding(horizontal = 16.dp, vertical = 6.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
+            // Auto-Sync Camera Roll Card
+            MnemosRowCard(
+                title = "AUTO-SYNC CAMERA ROLL",
+                subtitle = "Automatically backup new photos & videos in background",
+                icon = Icons.Default.Sync,
+                iconTintVariant = IconTintVariant.IRIS,
+                trailingContent = {
+                    MnemosSwitch(
+                        checked = autoBackup,
+                        onCheckedChange = {
+                            HapticHelper.performClick(view)
+                            app.preferenceStore.setAutoBackup(it)
+                        }
+                    )
+                }
+            )
+
             // Server Connection Card
             MnemosCard(modifier = Modifier.fillMaxWidth()) {
                 Column(
@@ -308,7 +329,7 @@ fun SettingsScreen(
                 icon = Icons.AutoMirrored.Filled.Logout
             )
 
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(72.dp))
         }
     }
 }

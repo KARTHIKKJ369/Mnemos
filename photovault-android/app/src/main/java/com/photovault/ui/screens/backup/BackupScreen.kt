@@ -119,8 +119,8 @@ fun BackupScreen() {
     ) {
         // FRAME Hero Header
         FrameHeroHeader(
-            title = "BACKGROUND SYNC // VAULT",
-            subtitle = "CONTINUOUS CAMERA ROLL BACKUP & DIRECT BLOB UPLOAD"
+            title = "SYNC",
+            subtitle = "BACKGROUND CAMERA ROLL BACKUP"
         )
 
         Spacer(modifier = Modifier.height(4.dp))

@@ -317,12 +317,57 @@ class PhotoVaultClient(
                     context.contentResolver.update(uri, values, null, null)
                 }
 
+                prefs.markFileDownloaded(fileId)
                 Result.success(uri)
             }
         } catch (e: Exception) {
             Result.failure(e)
         }
     }
+
+    suspend fun fetchAllMedia(
+        query: String = "",
+        mimeType: String = "",
+        favoriteOnly: Boolean = false,
+        deletedOnly: Boolean = false,
+        deviceId: String = "",
+        excludeDeviceId: String = "",
+        sort: String = "taken_at",
+        order: String = "desc"
+    ): Result<List<MediaItem>> = withContext(Dispatchers.IO) {
+        try {
+            val allItems = mutableListOf<MediaItem>()
+            var offset = 0
+            val pageSize = 1000
+            while (true) {
+                val result = fetchMedia(
+                    query = query,
+                    mimeType = mimeType,
+                    favoriteOnly = favoriteOnly,
+                    deletedOnly = deletedOnly,
+                    deviceId = deviceId,
+                    excludeDeviceId = excludeDeviceId,
+                    sort = sort,
+                    order = order,
+                    limit = pageSize,
+                    offset = offset
+                )
+                if (result.isFailure) {
+                    return@withContext Result.failure(result.exceptionOrNull() ?: IOException("Failed to fetch media"))
+                }
+                val page = result.getOrNull().orEmpty()
+                allItems.addAll(page)
+                if (page.size < pageSize) break
+                offset += page.size
+            }
+            Result.success(allItems)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun fetchAllMediaForDevice(deviceId: String): Result<List<MediaItem>> =
+        fetchAllMedia(deviceId = deviceId)
 
     suspend fun setFavorite(fileId: String, favorite: Boolean): Result<Unit> = withContext(Dispatchers.IO) {
         try {

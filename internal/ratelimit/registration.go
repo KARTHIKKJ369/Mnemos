@@ -19,7 +19,7 @@ type entry struct {
 }
 
 const (
-	registrationLimit  = 5
+	registrationLimit  = 30
 	registrationWindow = time.Minute
 )
 

@@ -16,7 +16,7 @@ func TestRegistrationLimiterAllowsFiveRequestsPerMinute(t *testing.T) {
 		}
 	}
 	if limiter.Allow("100.64.0.1") {
-		t.Fatal("sixth request was allowed")
+		t.Fatal("limit+1 request was allowed")
 	}
 	if !limiter.Allow("100.64.0.2") {
 		t.Fatal("different IP was rejected")

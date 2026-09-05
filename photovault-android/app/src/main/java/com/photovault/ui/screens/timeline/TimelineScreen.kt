@@ -5,25 +5,26 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Sort
 import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material.icons.filled.Sort
 import androidx.compose.material.icons.filled.ViewModule
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -34,6 +35,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -41,6 +43,8 @@ import androidx.compose.ui.unit.sp
 import com.photovault.PhotoVaultApplication
 import com.photovault.data.model.MediaItem
 import com.photovault.ui.components.HapticHelper
+import com.photovault.ui.components.LiquidGlassPill
+import com.photovault.ui.components.liquidGlass
 import com.photovault.ui.screens.gallery.GalleryTile
 import com.photovault.ui.theme.AccentGold
 import com.photovault.ui.theme.DarkBackground
@@ -90,122 +94,149 @@ fun TimelineScreen(
         }
     }
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(DarkBackground)
+    ) {
+        Column(modifier = Modifier.fillMaxSize()) {
+            // Liquid Glass Top Bar
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .statusBarsPadding()
+                    .padding(horizontal = 16.dp, vertical = 8.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
                     Column {
                         Text(
                             text = "Timeline",
-                            fontSize = 20.sp,
+                            fontSize = 22.sp,
                             fontWeight = FontWeight.Bold,
                             color = TextPrimary
                         )
                         Text(
-                            text = if (sortDescending) "Newest First" else "Oldest First",
+                            text = if (sortDescending) "Chronological (Newest)" else "Chronological (Oldest)",
                             fontSize = 11.sp,
                             color = TextMuted
                         )
                     }
-                },
-                actions = {
-                    // Sort Direction Switcher
-                    IconButton(onClick = {
-                        HapticHelper.performSelection(view)
-                        sortDescending = !sortDescending
-                    }) {
-                        Icon(
-                            imageVector = Icons.Default.Sort,
-                            contentDescription = "Toggle Sort Order",
-                            tint = AccentGold
-                        )
-                    }
 
-                    // Density switcher (2 -> 3 -> 4 -> 5 -> 2)
-                    IconButton(onClick = {
-                        HapticHelper.performSelection(view)
-                        val nextCols = if (columns >= 5) 2 else columns + 1
-                        app.preferenceStore.setGridColumns(nextCols)
-                    }) {
-                        Icon(
-                            imageVector = Icons.Default.ViewModule,
-                            contentDescription = "Grid Density",
-                            tint = AccentGold
-                        )
-                    }
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        // Sort Toggle
+                        IconButton(onClick = {
+                            HapticHelper.performSelection(view)
+                            sortDescending = !sortDescending
+                        }) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.Sort,
+                                contentDescription = "Toggle Sort Order",
+                                tint = AccentGold,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
 
-                    // Refresh
-                    IconButton(onClick = {
-                        HapticHelper.performClick(view)
-                        loadMedia()
-                    }) {
-                        Icon(
-                            imageVector = Icons.Default.Refresh,
-                            contentDescription = "Refresh",
-                            tint = TextSecondary
-                        )
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = DarkBackground)
-            )
-        },
-        containerColor = DarkBackground
-    ) { paddingValues ->
-        if (isLoading && mediaList.isEmpty()) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(paddingValues),
-                contentAlignment = Alignment.Center
-            ) {
-                CircularProgressIndicator(color = AccentGold)
-            }
-        } else if (mediaList.isEmpty()) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(paddingValues),
-                contentAlignment = Alignment.Center
-            ) {
-                Text("No timeline items found", color = TextMuted, fontSize = 14.sp)
-            }
-        } else {
-            LazyVerticalGrid(
-                columns = GridCells.Fixed(columns),
-                contentPadding = PaddingValues(bottom = 80.dp),
-                horizontalArrangement = Arrangement.spacedBy(1.dp),
-                verticalArrangement = Arrangement.spacedBy(1.dp),
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(paddingValues)
-            ) {
-                groupedMedia.forEach { (dateHeader, itemsInDay) ->
-                    // Section Header
-                    item(span = { GridItemSpan(columns) }) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .background(DarkBackground)
-                                .padding(horizontal = 14.dp, vertical = 12.dp)
-                        ) {
-                            Text(
-                                text = formatDateHeader(dateHeader),
-                                color = TextPrimary,
-                                fontSize = 14.sp,
-                                fontWeight = FontWeight.SemiBold
+                        // Density switcher (2 -> 3 -> 4 -> 5 -> 2)
+                        IconButton(onClick = {
+                            HapticHelper.performSelection(view)
+                            val nextCols = if (columns >= 5) 2 else columns + 1
+                            app.preferenceStore.setGridColumns(nextCols)
+                        }) {
+                            Icon(
+                                imageVector = Icons.Default.ViewModule,
+                                contentDescription = "Grid Density",
+                                tint = TextSecondary,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+
+                        // Refresh
+                        IconButton(onClick = {
+                            HapticHelper.performClick(view)
+                            loadMedia()
+                        }) {
+                            Icon(
+                                imageVector = Icons.Default.Refresh,
+                                contentDescription = "Refresh",
+                                tint = TextSecondary,
+                                modifier = Modifier.size(20.dp)
                             )
                         }
                     }
+                }
+            }
 
-                    // Media Tiles
-                    items(itemsInDay, key = { it.fileId }) { item ->
-                        GalleryTile(
-                            media = item,
-                            onClick = {
-                                HapticHelper.performClick(view)
-                                onMediaSelected(item.fileId)
+            if (isLoading && mediaList.isEmpty()) {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    CircularProgressIndicator(color = AccentGold)
+                }
+            } else if (mediaList.isEmpty()) {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text("No timeline items found in vault", color = TextMuted, fontSize = 14.sp)
+                }
+            } else {
+                LazyVerticalGrid(
+                    columns = GridCells.Fixed(columns),
+                    contentPadding = PaddingValues(
+                        start = 1.dp,
+                        end = 1.dp,
+                        top = 4.dp,
+                        bottom = 12.dp
+                    ),
+                    horizontalArrangement = Arrangement.spacedBy(1.5.dp),
+                    verticalArrangement = Arrangement.spacedBy(1.5.dp),
+                    modifier = Modifier.fillMaxSize()
+                ) {
+                    groupedMedia.forEach { (dateHeader, itemsInDay) ->
+                        // Section Header with Liquid Glass capsule
+                        item(span = { GridItemSpan(columns) }) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 14.dp, vertical = 10.dp)
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .liquidGlass(
+                                            shape = RoundedCornerShape(14.dp),
+                                            backgroundColor = Color(0xCC111522),
+                                            borderAlphaTop = 0.20f
+                                        )
+                                        .padding(horizontal = 14.dp, vertical = 6.dp)
+                                ) {
+                                    Text(
+                                        text = formatDateHeader(dateHeader),
+                                        color = TextPrimary,
+                                        fontSize = 13.sp,
+                                        fontWeight = FontWeight.SemiBold
+                                    )
+                                }
                             }
-                        )
+                        }
+
+                        // Media Tiles
+                        items(itemsInDay, key = { it.fileId }) { item ->
+                            GalleryTile(
+                                media = item,
+                                onClick = {
+                                    HapticHelper.performClick(view)
+                                    onMediaSelected(item.fileId)
+                                }
+                            )
+                        }
                     }
                 }
             }

@@ -197,6 +197,7 @@ class PhotoVaultClient(
         query: String = "",
         mimeType: String = "",
         favoriteOnly: Boolean = false,
+        deletedOnly: Boolean = false,
         deviceId: String = "",
         excludeDeviceId: String = "",
         sort: String = "taken_at",
@@ -210,6 +211,7 @@ class PhotoVaultClient(
             if (query.isNotEmpty()) urlBuilder.append("&query=").append(Uri.encode(query))
             if (mimeType.isNotEmpty()) urlBuilder.append("&mime_type=").append(Uri.encode(mimeType))
             if (favoriteOnly) urlBuilder.append("&favorite=true")
+            if (deletedOnly) urlBuilder.append("&deleted=true")
             if (deviceId.isNotEmpty()) urlBuilder.append("&device_id=").append(Uri.encode(deviceId))
             if (excludeDeviceId.isNotEmpty()) urlBuilder.append("&exclude_device_id=").append(Uri.encode(excludeDeviceId))
 
@@ -226,6 +228,40 @@ class PhotoVaultClient(
                 } else {
                     Result.failure(IOException("Fetch media failed: HTTP ${response.code} $body"))
                 }
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun restoreMedia(fileId: String): Result<Unit> = withContext(Dispatchers.IO) {
+        try {
+            val base = prefs.serverUrl.value
+            val request = Request.Builder()
+                .url("$base/media/$fileId/restore")
+                .post("{}".toRequestBody("application/json".toMediaTypeOrNull()))
+                .build()
+
+            okHttpClient.newCall(request).execute().use { response ->
+                if (response.isSuccessful) Result.success(Unit)
+                else Result.failure(IOException("Restore failed: HTTP ${response.code}"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun permanentDeleteMedia(fileId: String): Result<Unit> = withContext(Dispatchers.IO) {
+        try {
+            val base = prefs.serverUrl.value
+            val request = Request.Builder()
+                .url("$base/media/$fileId/permanent")
+                .delete()
+                .build()
+
+            okHttpClient.newCall(request).execute().use { response ->
+                if (response.isSuccessful) Result.success(Unit)
+                else Result.failure(IOException("Permanent delete failed: HTTP ${response.code}"))
             }
         } catch (e: Exception) {
             Result.failure(e)

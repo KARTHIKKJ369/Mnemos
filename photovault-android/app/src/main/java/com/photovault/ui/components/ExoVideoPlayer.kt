@@ -1,10 +1,10 @@
 package com.photovault.ui.components
 
+import android.view.View
 import android.view.ViewGroup
 import android.widget.FrameLayout
 import androidx.annotation.OptIn
 import androidx.compose.foundation.background
-import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
@@ -17,7 +17,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.viewinterop.AndroidView
@@ -32,9 +31,10 @@ import androidx.media3.ui.PlayerView
 fun ExoVideoPlayer(
     videoUrl: String,
     modifier: Modifier = Modifier,
+    controlsVisible: Boolean = true,
+    onControlsVisibilityChanged: (Boolean) -> Unit = {},
     isFillScreen: Boolean = false,
-    onToggleFillScreen: (() -> Unit)? = null,
-    onTap: () -> Unit = {}
+    onToggleFillScreen: (() -> Unit)? = null
 ) {
     val context = LocalContext.current
     val view = LocalView.current
@@ -57,6 +57,16 @@ fun ExoVideoPlayer(
         }
     }
 
+    LaunchedEffect(controlsVisible) {
+        playerViewRef?.let { pv ->
+            if (controlsVisible && !pv.isControllerFullyVisible) {
+                pv.showController()
+            } else if (!controlsVisible && pv.isControllerFullyVisible) {
+                pv.hideController()
+            }
+        }
+    }
+
     DisposableEffect(exoPlayer) {
         onDispose {
             exoPlayer.release()
@@ -66,18 +76,7 @@ fun ExoVideoPlayer(
     Box(
         modifier = modifier
             .fillMaxSize()
-            .background(Color.Black)
-            .pointerInput(Unit) {
-                detectTapGestures(
-                    onDoubleTap = {
-                        HapticHelper.performClick(view)
-                        onToggleFillScreen?.invoke()
-                    },
-                    onTap = {
-                        onTap()
-                    }
-                )
-            },
+            .background(Color.Black),
         contentAlignment = Alignment.Center
     ) {
         AndroidView(
@@ -85,7 +84,7 @@ fun ExoVideoPlayer(
                 PlayerView(ctx).apply {
                     player = exoPlayer
                     useController = true
-                    controllerShowTimeoutMs = 2500
+                    controllerShowTimeoutMs = 3500
                     controllerAutoShow = true
                     resizeMode = if (isFillScreen) {
                         AspectRatioFrameLayout.RESIZE_MODE_ZOOM
@@ -97,6 +96,10 @@ fun ExoVideoPlayer(
                         ViewGroup.LayoutParams.MATCH_PARENT,
                         ViewGroup.LayoutParams.MATCH_PARENT
                     )
+                    setControllerVisibilityListener(PlayerView.ControllerVisibilityListener { visibility ->
+                        val isVisible = (visibility == View.VISIBLE)
+                        onControlsVisibilityChanged(isVisible)
+                    })
                     playerViewRef = this
                 }
             },

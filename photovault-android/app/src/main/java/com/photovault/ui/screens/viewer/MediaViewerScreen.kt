@@ -181,9 +181,9 @@ fun MediaViewerScreen(
     val currentMedia = mediaList.getOrNull(pagerState.currentPage) ?: return
     val filmstripListState = rememberLazyListState()
 
-    // Auto-hide top bar & controls after 3.5s delay of inactivity
-    LaunchedEffect(controlsVisible, pagerState.currentPage) {
-        if (controlsVisible) {
+    // Auto-hide top bar & controls after 3.5s delay of inactivity for photos
+    LaunchedEffect(controlsVisible, pagerState.currentPage, currentMedia.isVideo) {
+        if (!currentMedia.isVideo && controlsVisible) {
             delay(3500)
             controlsVisible = false
         }
@@ -225,24 +225,19 @@ fun MediaViewerScreen(
         // Main Media Horizontal Pager
         HorizontalPager(
             state = pagerState,
-            modifier = Modifier
-                .fillMaxSize()
-                .pointerInput(Unit) {
-                    detectTapGestures(
-                        onTap = {
-                            controlsVisible = !controlsVisible
-                        }
-                    )
-                }
+            modifier = Modifier.fillMaxSize()
         ) { page ->
             val item = mediaList[page]
             if (item.isVideo) {
                 val videoUrl = app.apiClient.getVideoStreamUrl(item.fileId)
                 ExoVideoPlayer(
                     videoUrl = videoUrl,
+                    controlsVisible = controlsVisible,
+                    onControlsVisibilityChanged = { isVisible ->
+                        controlsVisible = isVisible
+                    },
                     isFillScreen = isFillScreen,
                     onToggleFillScreen = { toggleFillScreen() },
-                    onTap = { controlsVisible = !controlsVisible },
                     modifier = Modifier.fillMaxSize()
                 )
             } else {

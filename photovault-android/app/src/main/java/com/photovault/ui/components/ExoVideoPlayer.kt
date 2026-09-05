@@ -5,6 +5,7 @@ import android.view.ViewGroup
 import android.widget.FrameLayout
 import androidx.annotation.OptIn
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
@@ -17,6 +18,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.viewinterop.AndroidView
@@ -59,9 +61,9 @@ fun ExoVideoPlayer(
 
     LaunchedEffect(controlsVisible) {
         playerViewRef?.let { pv ->
-            if (controlsVisible && !pv.isControllerFullyVisible) {
+            if (controlsVisible) {
                 pv.showController()
-            } else if (!controlsVisible && pv.isControllerFullyVisible) {
+            } else {
                 pv.hideController()
             }
         }
@@ -84,8 +86,8 @@ fun ExoVideoPlayer(
                 PlayerView(ctx).apply {
                     player = exoPlayer
                     useController = true
-                    controllerShowTimeoutMs = 3500
-                    controllerAutoShow = true
+                    controllerShowTimeoutMs = 3200
+                    controllerAutoShow = false
                     resizeMode = if (isFillScreen) {
                         AspectRatioFrameLayout.RESIZE_MODE_ZOOM
                     } else {
@@ -98,7 +100,9 @@ fun ExoVideoPlayer(
                     )
                     setControllerVisibilityListener(PlayerView.ControllerVisibilityListener { visibility ->
                         val isVisible = (visibility == View.VISIBLE)
-                        onControlsVisibilityChanged(isVisible)
+                        if (isVisible != controlsVisible) {
+                            onControlsVisibilityChanged(isVisible)
+                        }
                     })
                     playerViewRef = this
                 }
@@ -112,5 +116,24 @@ fun ExoVideoPlayer(
             },
             modifier = Modifier.fillMaxSize()
         )
+
+        // When controls are hidden, tapping anywhere immediately reveals all controls synchronously
+        if (!controlsVisible) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .pointerInput(Unit) {
+                        detectTapGestures(
+                            onDoubleTap = {
+                                HapticHelper.performClick(view)
+                                onToggleFillScreen?.invoke()
+                            },
+                            onTap = {
+                                onControlsVisibilityChanged(true)
+                            }
+                        )
+                    }
+            )
+        }
     }
 }

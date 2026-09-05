@@ -64,6 +64,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -73,6 +74,9 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -111,8 +115,9 @@ fun MediaViewerScreen(
     val scope = rememberCoroutineScope()
     val activity = context as? Activity
 
-    var isLandscapeOrientation by remember { mutableStateOf(false) }
-    var isFillScreen by remember { mutableStateOf(false) }
+    var isLandscapeOrientation by rememberSaveable { mutableStateOf(false) }
+    var isFillScreen by rememberSaveable { mutableStateOf(false) }
+    var controlsVisible by rememberSaveable { mutableStateOf(true) }
 
     fun toggleOrientation() {
         HapticHelper.performClick(view)
@@ -132,12 +137,30 @@ fun MediaViewerScreen(
 
     BackHandler(enabled = true) {
         activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
+        activity?.window?.let { window ->
+            WindowCompat.getInsetsController(window, window.decorView)
+                .show(WindowInsetsCompat.Type.systemBars())
+        }
         onClose()
     }
 
-    DisposableEffect(Unit) {
+    DisposableEffect(controlsVisible, isLandscapeOrientation) {
+        activity?.window?.let { window ->
+            val insetsController = WindowCompat.getInsetsController(window, window.decorView)
+            insetsController.systemBarsBehavior =
+                WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+            if (!controlsVisible) {
+                insetsController.hide(WindowInsetsCompat.Type.systemBars())
+            } else {
+                insetsController.show(WindowInsetsCompat.Type.systemBars())
+            }
+        }
         onDispose {
             activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
+            activity?.window?.let { window ->
+                WindowCompat.getInsetsController(window, window.decorView)
+                    .show(WindowInsetsCompat.Type.systemBars())
+            }
         }
     }
 
@@ -146,7 +169,6 @@ fun MediaViewerScreen(
     }
     var showInfoSheet by remember { mutableStateOf(false) }
     var isDownloading by remember { mutableStateOf(false) }
-    var controlsVisible by remember { mutableStateOf(true) }
 
     LaunchedEffect(initialMediaList) {
         if (initialMediaList.isEmpty()) {
@@ -181,10 +203,10 @@ fun MediaViewerScreen(
     val currentMedia = mediaList.getOrNull(pagerState.currentPage) ?: return
     val filmstripListState = rememberLazyListState()
 
-    // Auto-hide top bar & controls after 3.5s delay of inactivity for photos
-    LaunchedEffect(controlsVisible, pagerState.currentPage, currentMedia.isVideo) {
-        if (!currentMedia.isVideo && controlsVisible) {
-            delay(3500)
+    // Synchronous Auto-hide of all controls (top bar, system bars, filmstrip, video controls)
+    LaunchedEffect(controlsVisible, pagerState.currentPage) {
+        if (controlsVisible) {
+            delay(3200)
             controlsVisible = false
         }
     }

@@ -1,5 +1,6 @@
 package com.photovault.ui.screens.viewer
 
+import android.widget.Toast
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -27,11 +28,16 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Camera
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Devices
+import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Map
 import androidx.compose.material.icons.filled.Schedule
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -84,6 +90,7 @@ fun MediaViewerScreen(
 
     var mediaList by remember { mutableStateOf<List<MediaItem>>(emptyList()) }
     var showInfoSheet by remember { mutableStateOf(false) }
+    var isDownloading by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
         val result = app.apiClient.fetchMedia()
@@ -118,6 +125,26 @@ fun MediaViewerScreen(
         filmstripListState.animateScrollToItem(
             (pagerState.currentPage - 2).coerceAtLeast(0)
         )
+    }
+
+    fun downloadCurrent() {
+        if (isDownloading) return
+        isDownloading = true
+        HapticHelper.performClick(view)
+        scope.launch {
+            val res = app.apiClient.downloadMediaToGallery(
+                fileId = currentMedia.fileId,
+                filename = currentMedia.filename,
+                mimeType = currentMedia.mimeType
+            )
+            isDownloading = false
+            res.onSuccess {
+                HapticHelper.vibrateSuccess(context)
+                Toast.makeText(context, "Saved ${currentMedia.filename} to device gallery!", Toast.LENGTH_SHORT).show()
+            }.onFailure {
+                Toast.makeText(context, "Download failed: ${it.localizedMessage}", Toast.LENGTH_SHORT).show()
+            }
+        }
     }
 
     Box(
@@ -172,28 +199,62 @@ fun MediaViewerScreen(
                 )
             }
 
-            // Filename pill
+            // Filename & Device pill
             Box(
                 modifier = Modifier
                     .background(Color.Black.copy(alpha = 0.6f), RoundedCornerShape(20.dp))
                     .padding(horizontal = 14.dp, vertical = 8.dp)
             ) {
-                Text(
-                    text = currentMedia.filename,
-                    color = Color.White,
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.Medium,
-                    maxLines = 1
-                )
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(
+                        text = currentMedia.filename,
+                        color = Color.White,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Medium,
+                        maxLines = 1
+                    )
+                    currentMedia.uploadedByDeviceName?.let { devName ->
+                        if (devName.isNotBlank()) {
+                            Text(
+                                text = "From $devName",
+                                color = AccentGold,
+                                fontSize = 9.sp,
+                                fontWeight = FontWeight.Normal
+                            )
+                        }
+                    }
+                }
             }
 
-            // Actions Pill (Favorite, Info, Delete)
+            // Actions Pill (Download, Favorite, Info, Delete)
             Row(
                 modifier = Modifier
                     .background(Color.Black.copy(alpha = 0.6f), RoundedCornerShape(20.dp))
                     .padding(horizontal = 4.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
+                // Download Button
+                IconButton(
+                    onClick = { downloadCurrent() },
+                    enabled = !isDownloading
+                ) {
+                    if (isDownloading) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(16.dp),
+                            strokeWidth = 2.dp,
+                            color = AccentGold
+                        )
+                    } else {
+                        Icon(
+                            imageVector = Icons.Default.Download,
+                            contentDescription = "Download to Device",
+                            tint = AccentGold,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                }
+
+                // Favorite Button
                 IconButton(onClick = {
                     HapticHelper.performClick(view)
                     val newFav = !currentMedia.favorite
@@ -212,6 +273,7 @@ fun MediaViewerScreen(
                     )
                 }
 
+                // Info Sheet Button
                 IconButton(onClick = {
                     HapticHelper.performClick(view)
                     showInfoSheet = true
@@ -224,6 +286,7 @@ fun MediaViewerScreen(
                     )
                 }
 
+                // Delete Button
                 IconButton(onClick = {
                     HapticHelper.vibrateWarning(context)
                     scope.launch {
@@ -248,36 +311,41 @@ fun MediaViewerScreen(
                     .align(Alignment.BottomCenter)
                     .padding(bottom = 32.dp, start = 16.dp, end = 16.dp)
                     .background(Color.Black.copy(alpha = 0.65f), RoundedCornerShape(16.dp))
-                    .padding(horizontal = 8.dp, vertical = 6.dp)
+                    .padding(horizontal = 8.dp, vertical = 8.dp)
             ) {
                 LazyRow(
                     state = filmstripListState,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    itemsIndexed(mediaList) { index, item ->
-                        val isSelected = index == pagerState.currentPage
-                        val thumbUrl = if (item.thumbnailAvailable) {
-                            app.apiClient.getThumbnailUrl(item.fileId)
-                        } else {
-                            app.apiClient.getOriginalUrl(item.fileId)
+                    itemsIndexed(mediaList, key = { _, item -> item.fileId }) { index, item ->
+                        val isSelected = pagerState.currentPage == index
+                        val thumbUrl = remember(item.fileId) {
+                            if (item.thumbnailAvailable) app.apiClient.getThumbnailUrl(item.fileId)
+                            else app.apiClient.getOriginalUrl(item.fileId)
                         }
 
                         Box(
                             modifier = Modifier
-                                .size(if (isSelected) 44.dp else 36.dp)
+                                .size(if (isSelected) 48.dp else 40.dp)
                                 .clip(RoundedCornerShape(8.dp))
                                 .clickable {
-                                    HapticHelper.performSelection(view)
                                     scope.launch {
                                         pagerState.animateScrollToPage(index)
                                     }
                                 }
+                                .then(
+                                    if (isSelected) Modifier.background(
+                                        AccentGold,
+                                        RoundedCornerShape(8.dp)
+                                    ).padding(2.dp).clip(RoundedCornerShape(6.dp))
+                                    else Modifier
+                                )
                         ) {
                             AsyncImage(
                                 model = ImageRequest.Builder(context)
                                     .data(thumbUrl)
-                                    .crossfade(true)
+                                    .crossfade(100)
                                     .build(),
                                 contentDescription = null,
                                 contentScale = ContentScale.Crop,
@@ -289,7 +357,7 @@ fun MediaViewerScreen(
             }
         }
 
-        // Slide-up EXIF Metadata Bottom Sheet
+        // Metadata Info Sheet
         if (showInfoSheet) {
             ModalBottomSheet(
                 onDismissRequest = { showInfoSheet = false },
@@ -299,29 +367,71 @@ fun MediaViewerScreen(
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 24.dp, vertical = 12.dp)
+                        .padding(24.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
-                    Text(
-                        text = "Media Details",
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = TextPrimary
-                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "Media Details",
+                            color = TextPrimary,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 18.sp
+                        )
+                        IconButton(onClick = { showInfoSheet = false }) {
+                            Icon(Icons.Default.Close, contentDescription = "Close", tint = TextMuted)
+                        }
+                    }
 
-                    Spacer(modifier = Modifier.height(16.dp))
+                    // Download to device button inside sheet
+                    Button(
+                        onClick = {
+                            showInfoSheet = false
+                            downloadCurrent()
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = AccentGold,
+                            contentColor = Color.Black
+                        ),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Icon(Icons.Default.Download, contentDescription = null)
+                            Text("Download Original to Gallery", fontWeight = FontWeight.Bold)
+                        }
+                    }
 
-                    MetadataRow(label = "Filename", value = currentMedia.filename)
-                    MetadataRow(label = "MIME Type", value = currentMedia.mimeType)
+                    // Metadata rows
                     MetadataRow(
-                        label = "File Size",
-                        value = "${(currentMedia.sizeBytes / (1024 * 1024.0)).format(2)} MB"
+                        icon = Icons.Default.Devices,
+                        label = "Uploaded From",
+                        value = "${currentMedia.uploadedByDeviceName ?: "Server Admin"} (${currentMedia.uploadedByDeviceType?.uppercase() ?: "NODE"})"
                     )
 
-                    currentMedia.takenAt?.let {
+                    MetadataRow(
+                        icon = Icons.Default.Schedule,
+                        label = "Date",
+                        value = currentMedia.takenAt ?: currentMedia.uploadedAt
+                    )
+
+                    MetadataRow(
+                        icon = Icons.Default.Camera,
+                        label = "File Specs",
+                        value = "${currentMedia.filename} (${(currentMedia.sizeBytes / 1024.0 / 1024.0).format(2)} MB)"
+                    )
+
+                    if (currentMedia.width != null && currentMedia.height != null) {
                         MetadataRow(
-                            icon = Icons.Default.Schedule,
-                            label = "Date Taken",
-                            value = it
+                            icon = Icons.Default.Camera,
+                            label = "Resolution",
+                            value = "${currentMedia.width} × ${currentMedia.height}"
                         )
                     }
 
@@ -329,31 +439,19 @@ fun MediaViewerScreen(
                         MetadataRow(
                             icon = Icons.Default.Camera,
                             label = "Camera",
-                            value = listOfNotNull(currentMedia.cameraMake, currentMedia.cameraModel).joinToString(" ")
-                        )
-                    }
-
-                    if (currentMedia.width != null && currentMedia.height != null) {
-                        MetadataRow(
-                            label = "Resolution",
-                            value = "${currentMedia.width} × ${currentMedia.height} px"
+                            value = "${currentMedia.cameraMake ?: ""} ${currentMedia.cameraModel ?: ""}".trim()
                         )
                     }
 
                     if (currentMedia.gpsLat != null && currentMedia.gpsLon != null) {
                         MetadataRow(
                             icon = Icons.Default.Map,
-                            label = "Coordinates",
+                            label = "GPS Coordinates",
                             value = "${currentMedia.gpsLat.format(4)}, ${currentMedia.gpsLon.format(4)}"
                         )
                     }
 
-                    MetadataRow(
-                        label = "Source Device",
-                        value = currentMedia.uploadedByDeviceName.ifEmpty { "Other Device" }
-                    )
-
-                    Spacer(modifier = Modifier.height(32.dp))
+                    Spacer(modifier = Modifier.height(20.dp))
                 }
             }
         }
@@ -362,37 +460,20 @@ fun MediaViewerScreen(
 
 @Composable
 private fun MetadataRow(
-    icon: androidx.compose.ui.graphics.vector.ImageVector? = null,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
     label: String,
     value: String
 ) {
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 8.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            if (icon != null) {
-                Icon(
-                    imageVector = icon,
-                    contentDescription = null,
-                    tint = AccentGold,
-                    modifier = Modifier.size(16.dp)
-                )
-            }
-            Text(text = label, color = TextMuted, fontSize = 13.sp)
+        Icon(icon, contentDescription = null, tint = AccentGold, modifier = Modifier.size(20.dp))
+        Column {
+            Text(text = label, color = TextMuted, fontSize = 11.sp)
+            Text(text = value, color = TextPrimary, fontSize = 13.sp, fontWeight = FontWeight.Medium)
         }
-        Text(
-            text = value,
-            color = TextPrimary,
-            fontSize = 13.sp,
-            fontWeight = FontWeight.Medium
-        )
     }
 }
 

@@ -9,6 +9,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CloudUpload
 import androidx.compose.material.icons.filled.Collections
 import androidx.compose.material.icons.filled.DateRange
+import androidx.compose.material.icons.filled.Devices
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
@@ -29,6 +30,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.photovault.ui.components.HapticHelper
 import com.photovault.ui.screens.backup.BackupScreen
+import com.photovault.ui.screens.devices.DevicesScreen
 import com.photovault.ui.screens.gallery.GalleryScreen
 import com.photovault.ui.screens.settings.SettingsScreen
 import com.photovault.ui.screens.timeline.TimelineScreen
@@ -42,6 +44,7 @@ import com.photovault.ui.theme.TextSecondary
 enum class NavTab(val title: String, val icon: ImageVector) {
     PHOTOS("Photos", Icons.Default.Collections),
     TIMELINE("Timeline", Icons.Default.DateRange),
+    DEVICES("Devices", Icons.Default.Devices),
     BACKUP("Backup", Icons.Default.CloudUpload),
     SETTINGS("Settings", Icons.Default.Settings)
 }
@@ -53,6 +56,7 @@ fun MainNavHost(
     val view = LocalView.current
     var selectedTab by remember { mutableStateOf(NavTab.PHOTOS) }
     var activeViewerFileId by remember { mutableStateOf<String?>(null) }
+    var galleryFilterDeviceId by remember { mutableStateOf<String?>(null) }
 
     Box(modifier = Modifier.fillMaxSize()) {
         Scaffold(
@@ -79,7 +83,7 @@ fun MainNavHost(
                             label = {
                                 Text(
                                     text = tab.title,
-                                    fontSize = 11.sp
+                                    fontSize = 10.sp
                                 )
                             },
                             colors = NavigationBarItemDefaults.colors(
@@ -102,6 +106,7 @@ fun MainNavHost(
             ) {
                 when (selectedTab) {
                     NavTab.PHOTOS -> GalleryScreen(
+                        initialDeviceId = galleryFilterDeviceId,
                         onMediaSelected = { fileId ->
                             activeViewerFileId = fileId
                         }
@@ -109,6 +114,12 @@ fun MainNavHost(
                     NavTab.TIMELINE -> TimelineScreen(
                         onMediaSelected = { fileId ->
                             activeViewerFileId = fileId
+                        }
+                    )
+                    NavTab.DEVICES -> DevicesScreen(
+                        onNavigateToGalleryWithDevice = { deviceId, _ ->
+                            galleryFilterDeviceId = deviceId
+                            selectedTab = NavTab.PHOTOS
                         }
                     )
                     NavTab.BACKUP -> BackupScreen()

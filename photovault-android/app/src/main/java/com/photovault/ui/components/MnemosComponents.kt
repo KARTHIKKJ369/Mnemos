@@ -643,3 +643,69 @@ fun FrameBottomStatusBar(
         }
     }
 }
+
+/**
+ * Mnemos Brand Emblem: Golden retro slide frame with sage green inner window & outer ring
+ * Reference: Golden viewfinder on dark ring + "MNEMOS" + "STORIES TOLD THROUGH EVERY FRAME"
+ */
+@Composable
+fun MnemosBrandEmblem(
+    modifier: Modifier = Modifier,
+    size: Dp = 64.dp
+) {
+    Box(
+        modifier = modifier
+            .size(size)
+            .clip(CircleShape)
+            .border(1.dp, FrameGray700, CircleShape)
+            .padding(size * 0.16f),
+        contentAlignment = Alignment.Center
+    ) {
+        // Outer Yellow Camera/Slide Frame
+        Box(
+            modifier = Modifier
+                .size(size * 0.58f)
+                .clip(RoundedCornerShape(size * 0.12f))
+                .background(Color(0xFFEDB03B))
+                .border(1.5.dp, Color(0xFF111418), RoundedCornerShape(size * 0.12f))
+                .padding(size * 0.09f),
+            contentAlignment = Alignment.Center
+        ) {
+            // Inner Sage Green Screen Window
+            Box(
+                modifier = Modifier
+                    .size(size * 0.38f)
+                    .clip(RoundedCornerShape(size * 0.06f))
+                    .background(Color(0xFF6A8E7D))
+                    .border(1.dp, Color(0xFF111418), RoundedCornerShape(size * 0.06f))
+            )
+        }
+    }
+}
+
+@Composable
+fun MnemosBrandHeader(
+    modifier: Modifier = Modifier
+) {
+    Column(
+        modifier = modifier,
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(6.dp)
+    ) {
+        MnemosBrandEmblem(size = 76.dp)
+
+        Spacer(modifier = Modifier.height(4.dp))
+
+        Text(
+            text = "MNEMOS",
+            style = MnemosType.Headline28.copy(fontSize = 24.sp, fontWeight = FontWeight.Black, letterSpacing = 0.05.em),
+            color = FrameWhite
+        )
+
+        Text(
+            text = "STORIES TOLD THROUGH EVERY FRAME",
+            style = MnemosType.Mono11.copy(fontSize = 9.sp, letterSpacing = 0.18.em, fontWeight = FontWeight.Normal),
+            color = FrameGray500
+        )
+    }
+}

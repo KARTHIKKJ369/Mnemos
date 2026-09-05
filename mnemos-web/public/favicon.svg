@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 108 108" width="108" height="108">
+  <circle cx="54" cy="54" r="52" fill="#090C10" />
+  <!-- Outer fine circular ring -->
+  <circle cx="54" cy="54" r="41" fill="none" stroke="#3E4E5F" stroke-width="1.5" />
+  
+  <!-- 3D Bevel Lip / Base -->
+  <rect x="31" y="60" width="46" height="23" rx="9" fill="#C8831E" stroke="#111418" stroke-width="2.2" />
+  <line x1="33" y1="78" x2="75" y2="78" stroke="#111418" stroke-width="1.8" stroke-linecap="round" />
+  
+  <!-- Golden Camera / Screen Frame Body -->
+  <rect x="31" y="31" width="46" height="47" rx="9" fill="#EDB03B" stroke="#111418" stroke-width="2.2" />
+  
+  <!-- Inner Screen Window (Sage Green) -->
+  <rect x="39" y="39" width="30" height="29" rx="5" fill="#6A8E7D" stroke="#111418" stroke-width="1.8" />
+</svg>

@@ -8,27 +8,28 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CloudUpload
 import androidx.compose.material.icons.filled.Collections
-import androidx.compose.material.icons.filled.DateRange
-import androidx.compose.material.icons.filled.Devices
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Icon
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -37,35 +38,31 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalView
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.photovault.ui.components.GlassSurfaceElevated
 import com.photovault.ui.components.HapticHelper
-import com.photovault.ui.components.liquidGlass
 import com.photovault.ui.screens.backup.BackupScreen
 import com.photovault.ui.screens.devices.DevicesScreen
 import com.photovault.ui.screens.gallery.GalleryScreen
+import com.photovault.ui.screens.search.SearchScreen
 import com.photovault.ui.screens.settings.SettingsScreen
-import com.photovault.ui.screens.timeline.TimelineScreen
 import com.photovault.ui.screens.trash.TrashScreen
 import com.photovault.ui.screens.viewer.MediaViewerScreen
-import com.photovault.ui.theme.AccentGold
-import com.photovault.ui.theme.AccentGoldGlow
-import com.photovault.ui.theme.DarkBackground
+import com.photovault.ui.theme.AccentAmber
+import com.photovault.ui.theme.MnemosType
+import com.photovault.ui.theme.NeutralCanvas
+import com.photovault.ui.theme.NeutralHairline
+import com.photovault.ui.theme.NeutralSurface
 import com.photovault.ui.theme.TextMuted
-import com.photovault.ui.theme.TextPrimary
 import com.photovault.ui.theme.TextSecondary
 
 enum class NavTab(val title: String, val icon: ImageVector) {
-    PHOTOS("Photos", Icons.Default.Collections),
-    TIMELINE("Timeline", Icons.Default.DateRange),
-    DEVICES("Devices", Icons.Default.Devices),
+    LIBRARY("Library", Icons.Default.Collections),
+    SEARCH("Search", Icons.Default.Search),
     BACKUP("Backup", Icons.Default.CloudUpload),
     SETTINGS("Settings", Icons.Default.Settings)
 }
@@ -75,136 +72,138 @@ fun MainNavHost(
     onLogout: () -> Unit
 ) {
     val view = LocalView.current
-    var selectedTab by remember { mutableStateOf(NavTab.PHOTOS) }
+    var selectedTab by remember { mutableStateOf(NavTab.LIBRARY) }
     var activeViewerFileId by remember { mutableStateOf<String?>(null) }
     var galleryFilterDeviceId by remember { mutableStateOf<String?>(null) }
     var showTrashScreen by remember { mutableStateOf(false) }
+    var showDevicesScreen by remember { mutableStateOf(false) }
 
-    // Back handling: if viewing media, close viewer; if on trash, close trash; if on another tab, return to Photos
-    BackHandler(enabled = activeViewerFileId == null && !showTrashScreen && selectedTab != NavTab.PHOTOS) {
-        selectedTab = NavTab.PHOTOS
+    // Back handling: if viewing media, close viewer; if on overlay, close overlay; if on another tab, return to Library
+    BackHandler(enabled = activeViewerFileId == null && !showTrashScreen && !showDevicesScreen && selectedTab != NavTab.LIBRARY) {
+        selectedTab = NavTab.LIBRARY
     }
 
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(DarkBackground)
+            .background(NeutralCanvas)
     ) {
-        // Main Screen Content
+        // Main Content Area (padding bottom 60dp for bottom bar)
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(bottom = 68.dp) // Space for floating liquid navbar
+                .padding(bottom = 60.dp)
         ) {
             AnimatedContent(
                 targetState = selectedTab,
                 transitionSpec = {
-                    fadeIn(animationSpec = spring(stiffness = 500f)) togetherWith
-                            fadeOut(animationSpec = spring(stiffness = 500f))
+                    fadeIn(animationSpec = spring(stiffness = 600f)) togetherWith
+                            fadeOut(animationSpec = spring(stiffness = 600f))
                 },
                 label = "tabTransition"
             ) { tab ->
                 when (tab) {
-                    NavTab.PHOTOS -> GalleryScreen(
+                    NavTab.LIBRARY -> GalleryScreen(
                         initialDeviceId = galleryFilterDeviceId,
                         onMediaSelected = { fileId ->
                             activeViewerFileId = fileId
                         }
                     )
-                    NavTab.TIMELINE -> TimelineScreen(
+                    NavTab.SEARCH -> SearchScreen(
                         onMediaSelected = { fileId ->
                             activeViewerFileId = fileId
-                        }
-                    )
-                    NavTab.DEVICES -> DevicesScreen(
-                        onNavigateToGalleryWithDevice = { deviceId, _ ->
-                            galleryFilterDeviceId = deviceId
-                            selectedTab = NavTab.PHOTOS
                         }
                     )
                     NavTab.BACKUP -> BackupScreen()
                     NavTab.SETTINGS -> SettingsScreen(
                         onLogout = onLogout,
-                        onOpenTrash = { showTrashScreen = true }
+                        onOpenTrash = { showTrashScreen = true },
+                        onOpenDevices = { showDevicesScreen = true }
                     )
                 }
             }
         }
 
-        // Floating Liquid Glass Navigation Bar
+        // Bottom Navigation Bar (4 items max, amber hairline underline on active, 0 filled bubble)
         Box(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
-                .navigationBarsPadding()
-                .padding(horizontal = 18.dp, vertical = 8.dp)
                 .fillMaxWidth()
-                .liquidGlass(
-                    shape = RoundedCornerShape(32.dp),
-                    backgroundColor = Color(0xF0121622),
-                    borderColor = Color.White,
-                    borderWidth = 1.dp,
-                    borderAlphaTop = 0.22f,
-                    borderAlphaBottom = 0.04f
-                )
-                .padding(horizontal = 8.dp, vertical = 6.dp)
+                .background(NeutralSurface)
+                .border(width = 1.dp, color = NeutralHairline)
+                .navigationBarsPadding()
+                .height(56.dp)
         ) {
             Row(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxSize(),
                 horizontalArrangement = Arrangement.SpaceAround,
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 NavTab.entries.forEach { tab ->
                     val isSelected = selectedTab == tab
                     val scale by animateFloatAsState(
-                        targetValue = if (isSelected) 1.05f else 1f,
-                        animationSpec = spring(dampingRatio = 0.7f, stiffness = 400f),
+                        targetValue = if (isSelected) 1.0f else 0.96f,
+                        animationSpec = spring(dampingRatio = 0.8f, stiffness = 500f),
                         label = "tabScale"
                     )
 
                     Box(
                         modifier = Modifier
+                            .weight(1f)
+                            .height(56.dp)
                             .scale(scale)
-                            .clip(RoundedCornerShape(20.dp))
-                            .then(
-                                if (isSelected) {
-                                    Modifier
-                                        .background(AccentGoldGlow, RoundedCornerShape(20.dp))
-                                } else Modifier
-                            )
                             .clickable(
                                 interactionSource = remember { MutableInteractionSource() },
                                 indication = null,
                                 onClick = {
                                     HapticHelper.performClick(view)
-                                    if (tab == NavTab.PHOTOS && selectedTab != NavTab.PHOTOS) {
+                                    if (tab == NavTab.LIBRARY && selectedTab != NavTab.LIBRARY) {
                                         galleryFilterDeviceId = null
                                     }
                                     selectedTab = tab
                                 }
-                            )
-                            .padding(horizontal = 12.dp, vertical = 6.dp),
+                            ),
                         contentAlignment = Alignment.Center
                     ) {
                         Column(
                             horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.spacedBy(2.dp)
+                            verticalArrangement = Arrangement.Center
                         ) {
                             Icon(
                                 imageVector = tab.icon,
                                 contentDescription = tab.title,
-                                tint = if (isSelected) AccentGold else TextMuted,
+                                tint = if (isSelected) AccentAmber else TextMuted,
                                 modifier = Modifier.size(20.dp)
                             )
+                            Spacer(modifier = Modifier.height(3.dp))
                             Text(
                                 text = tab.title,
-                                fontSize = 10.sp,
-                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                                color = if (isSelected) AccentGold else TextMuted
+                                style = MnemosType.Label11.copy(fontSize = 11.sp),
+                                color = if (isSelected) AccentAmber else TextMuted
+                            )
+                            Spacer(modifier = Modifier.height(2.dp))
+                            // Crisp 1.5dp amber hairline underline on active state (replaces filled pill)
+                            Box(
+                                modifier = Modifier
+                                    .width(20.dp)
+                                    .height(1.5.dp)
+                                    .background(if (isSelected) AccentAmber else Color.Transparent)
                             )
                         }
                     }
                 }
             }
+        }
+
+        // Connected Devices Roster overlay
+        if (showDevicesScreen) {
+            DevicesScreen(
+                onNavigateToGalleryWithDevice = { deviceId, _ ->
+                    galleryFilterDeviceId = deviceId
+                    showDevicesScreen = false
+                    selectedTab = NavTab.LIBRARY
+                }
+            )
         }
 
         // Trash & Deleted Items overlay

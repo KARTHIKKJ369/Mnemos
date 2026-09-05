@@ -23,9 +23,9 @@
     <application
         android:name=".PhotoVaultApplication"
         android:allowBackup="true"
-        android:icon="@android:drawable/ic_menu_gallery"
-        android:label="PhotoVault"
-        android:roundIcon="@android:drawable/ic_menu_gallery"
+        android:icon="@mipmap/ic_launcher"
+        android:label="Mnemos"
+        android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@android:style/Theme.Material.NoActionBar"
         android:usesCleartextTraffic="true">

@@ -24,6 +24,7 @@ import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.filled.CleaningServices
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Devices
 import androidx.compose.material.icons.filled.Dns
 import androidx.compose.material.icons.filled.Storage
 import androidx.compose.material3.Button
@@ -74,7 +75,8 @@ import java.io.File
 @Composable
 fun SettingsScreen(
     onLogout: () -> Unit,
-    onOpenTrash: () -> Unit = {}
+    onOpenTrash: () -> Unit = {},
+    onOpenDevices: () -> Unit = {}
 ) {
     val app = PhotoVaultApplication.instance
     val context = LocalContext.current
@@ -166,6 +168,58 @@ fun SettingsScreen(
                     SettingsRow(
                         label = "Vault Status",
                         value = if (healthData?.database == "ok") "Connected & Healthy" else "Checking..."
+                    )
+                }
+            }
+
+            // Paired Nodes / Devices Card
+            LiquidGlassCard(
+                shape = RoundedCornerShape(22.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable {
+                        HapticHelper.performClick(view)
+                        onOpenDevices()
+                    }
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(18.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(36.dp)
+                                .liquidGlass(shape = CircleShape, backgroundColor = Color(0x33F5B726)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(Icons.Default.Devices, contentDescription = null, tint = AccentGold, modifier = Modifier.size(18.dp))
+                        }
+                        Column {
+                            Text(
+                                text = "Paired Cluster Devices",
+                                color = TextPrimary,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 16.sp
+                            )
+                            Text(
+                                text = "Inspect node roster, types & last sync",
+                                color = TextMuted,
+                                fontSize = 12.sp
+                            )
+                        }
+                    }
+                    Icon(
+                        Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                        contentDescription = "Open Devices",
+                        tint = TextSecondary,
+                        modifier = Modifier.size(20.dp)
                     )
                 }
             }

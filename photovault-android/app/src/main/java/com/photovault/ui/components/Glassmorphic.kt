@@ -16,6 +16,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
@@ -29,12 +30,12 @@ import androidx.compose.ui.unit.dp
 import com.photovault.ui.theme.AccentGold
 import com.photovault.ui.theme.DarkSurfaceVariant
 
-// Liquid Glass Color Tokens
-val GlassSurfaceBase = Color(0xCC111520)      // 80% Frosted Slate
-val GlassSurfaceElevated = Color(0xDD181D2B)  // 87% Elevated Slate
-val GlassSurfacePill = Color(0xB3121622)      // 70% Capsule Glass
-val GlassHighlightTop = Color(0x33FFFFFF)     // Specular edge light
-val GlassHighlightBottom = Color(0x0AFFFFFF)  // Subtle bottom edge
+// Mnemos Neutral Surface Tokens (Receding chrome, zero loud tints)
+val GlassSurfaceBase = Color(0xF2121212)      // Neutral surface base
+val GlassSurfaceElevated = Color(0xF2181818)  // Neutral elevated
+val GlassSurfacePill = Color(0xF0181818)      // Neutral capsule
+val GlassHighlightTop = Color(0x1AFFFFFF)     // Subtle specular edge
+val GlassHighlightBottom = Color(0x06FFFFFF)  // Micro hairline bottom
 
 /**
  * Creates a dual-tone liquid glass gradient border that refracts light from top-left to bottom-right.

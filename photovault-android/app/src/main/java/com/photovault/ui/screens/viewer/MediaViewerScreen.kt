@@ -144,7 +144,17 @@ fun MediaViewerScreen(
         onClose()
     }
 
-    DisposableEffect(controlsVisible, isLandscapeOrientation) {
+    DisposableEffect(Unit) {
+        onDispose {
+            activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
+            activity?.window?.let { window ->
+                WindowCompat.getInsetsController(window, window.decorView)
+                    .show(WindowInsetsCompat.Type.systemBars())
+            }
+        }
+    }
+
+    LaunchedEffect(controlsVisible) {
         activity?.window?.let { window ->
             val insetsController = WindowCompat.getInsetsController(window, window.decorView)
             insetsController.systemBarsBehavior =
@@ -153,13 +163,6 @@ fun MediaViewerScreen(
                 insetsController.hide(WindowInsetsCompat.Type.systemBars())
             } else {
                 insetsController.show(WindowInsetsCompat.Type.systemBars())
-            }
-        }
-        onDispose {
-            activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
-            activity?.window?.let { window ->
-                WindowCompat.getInsetsController(window, window.decorView)
-                    .show(WindowInsetsCompat.Type.systemBars())
             }
         }
     }

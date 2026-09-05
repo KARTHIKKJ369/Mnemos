@@ -1,5 +1,6 @@
 package com.photovault.ui.screens
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
@@ -58,6 +59,11 @@ fun MainNavHost(
     var activeViewerFileId by remember { mutableStateOf<String?>(null) }
     var galleryFilterDeviceId by remember { mutableStateOf<String?>(null) }
 
+    // Intercept back button when not on Photos tab to return to Photos before closing
+    BackHandler(enabled = activeViewerFileId == null && selectedTab != NavTab.PHOTOS) {
+        selectedTab = NavTab.PHOTOS
+    }
+
     Box(modifier = Modifier.fillMaxSize()) {
         Scaffold(
             bottomBar = {
@@ -71,6 +77,10 @@ fun MainNavHost(
                             selected = isSelected,
                             onClick = {
                                 HapticHelper.performClick(view)
+                                if (tab == NavTab.PHOTOS && selectedTab != NavTab.PHOTOS) {
+                                    // Reset filter if navigating to Photos
+                                    galleryFilterDeviceId = null
+                                }
                                 selectedTab = tab
                             },
                             icon = {

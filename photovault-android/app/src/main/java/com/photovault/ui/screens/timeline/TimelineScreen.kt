@@ -14,6 +14,8 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Sort
+import androidx.compose.material.icons.filled.ViewModule
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -46,9 +48,7 @@ import com.photovault.ui.theme.TextMuted
 import com.photovault.ui.theme.TextPrimary
 import com.photovault.ui.theme.TextSecondary
 import kotlinx.coroutines.launch
-import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
-import java.time.format.FormatStyle
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -62,11 +62,15 @@ fun TimelineScreen(
 
     var mediaList by remember { mutableStateOf<List<MediaItem>>(emptyList()) }
     var isLoading by remember { mutableStateOf(true) }
+    var sortDescending by remember { mutableStateOf(true) }
 
     fun loadMedia() {
         isLoading = true
         scope.launch {
-            val result = app.apiClient.fetchMedia(sort = "taken_at", order = "desc")
+            val result = app.apiClient.fetchMedia(
+                sort = "taken_at",
+                order = if (sortDescending) "desc" else "asc"
+            )
             isLoading = false
             result.onSuccess {
                 mediaList = it
@@ -74,7 +78,7 @@ fun TimelineScreen(
         }
     }
 
-    LaunchedEffect(Unit) {
+    LaunchedEffect(sortDescending) {
         loadMedia()
     }
 
@@ -90,14 +94,47 @@ fun TimelineScreen(
         topBar = {
             TopAppBar(
                 title = {
-                    Text(
-                        text = "Timeline",
-                        fontSize = 20.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = TextPrimary
-                    )
+                    Column {
+                        Text(
+                            text = "Timeline",
+                            fontSize = 20.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = TextPrimary
+                        )
+                        Text(
+                            text = if (sortDescending) "Newest First" else "Oldest First",
+                            fontSize = 11.sp,
+                            color = TextMuted
+                        )
+                    }
                 },
                 actions = {
+                    // Sort Direction Switcher
+                    IconButton(onClick = {
+                        HapticHelper.performSelection(view)
+                        sortDescending = !sortDescending
+                    }) {
+                        Icon(
+                            imageVector = Icons.Default.Sort,
+                            contentDescription = "Toggle Sort Order",
+                            tint = AccentGold
+                        )
+                    }
+
+                    // Density switcher (2 -> 3 -> 4 -> 5 -> 2)
+                    IconButton(onClick = {
+                        HapticHelper.performSelection(view)
+                        val nextCols = if (columns >= 5) 2 else columns + 1
+                        app.preferenceStore.setGridColumns(nextCols)
+                    }) {
+                        Icon(
+                            imageVector = Icons.Default.ViewModule,
+                            contentDescription = "Grid Density",
+                            tint = AccentGold
+                        )
+                    }
+
+                    // Refresh
                     IconButton(onClick = {
                         HapticHelper.performClick(view)
                         loadMedia()

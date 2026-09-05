@@ -128,6 +128,26 @@ class PhotoVaultClient(
         }
     }
 
+    suspend fun deleteDevice(deviceId: String): Result<Unit> = withContext(Dispatchers.IO) {
+        try {
+            val base = prefs.serverUrl.value
+            val request = Request.Builder()
+                .url("$base/devices/$deviceId")
+                .delete()
+                .build()
+
+            okHttpClient.newCall(request).execute().use { response ->
+                if (response.isSuccessful) {
+                    Result.success(Unit)
+                } else {
+                    Result.failure(IOException("Delete device failed: HTTP ${response.code}"))
+                }
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
     suspend fun fetchSyncDiff(cursor: Long = 0): Result<SyncDiffResponse> = withContext(Dispatchers.IO) {
         try {
             val base = prefs.serverUrl.value

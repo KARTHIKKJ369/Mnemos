@@ -7,6 +7,7 @@ import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -16,12 +17,12 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.FilterQuality
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalView
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import coil.size.Precision
@@ -34,10 +35,12 @@ fun ProgressiveMediaImage(
     media: MediaItem,
     modifier: Modifier = Modifier,
     isZoomable: Boolean = true,
-    contentScale: ContentScale = ContentScale.Fit,
-    onTap: () -> Unit = {}
+    isFillScreen: Boolean = false,
+    onTap: () -> Unit = {},
+    onToggleFillScreen: (() -> Unit)? = null
 ) {
     val context = LocalContext.current
+    val view = LocalView.current
     val client = PhotoVaultApplication.instance.apiClient
     val scope = rememberCoroutineScope()
 
@@ -47,11 +50,19 @@ fun ProgressiveMediaImage(
     var scale by remember { mutableFloatStateOf(1f) }
     var offset by remember { mutableStateOf(Offset.Zero) }
 
+    val contentScale = if (isFillScreen) ContentScale.Crop else ContentScale.Fit
+
     val thumbnailUrl = remember(media.fileId) {
         if (media.thumbnailAvailable) client.getThumbnailUrl(media.fileId) else client.getOriginalUrl(media.fileId)
     }
     val originalUrl = remember(media.fileId) {
         client.getOriginalUrl(media.fileId)
+    }
+
+    // Reset zoom when switching images or fill screen
+    LaunchedEffect(media.fileId, isFillScreen) {
+        scale = 1f
+        offset = Offset.Zero
     }
 
     Box(
@@ -63,14 +74,13 @@ fun ProgressiveMediaImage(
                         .pointerInput(Unit) {
                             detectTapGestures(
                                 onDoubleTap = {
-                                    scope.launch {
-                                        if (scale > 1.05f) {
-                                            scale = 1f
-                                            offset = Offset.Zero
-                                        } else {
-                                            scale = 2.5f
-                                            offset = Offset.Zero
-                                        }
+                                    HapticHelper.performClick(view)
+                                    if (scale > 1.05f) {
+                                        scale = 1f
+                                        offset = Offset.Zero
+                                    } else {
+                                        scale = 2.5f
+                                        offset = Offset.Zero
                                     }
                                 },
                                 onTap = { onTap() }
@@ -104,11 +114,11 @@ fun ProgressiveMediaImage(
             ),
         contentAlignment = Alignment.Center
     ) {
-        // Stage 1: Fast low-latency thumbnail backdrop (loads instantly)
+        // Stage 1: Fast low-latency thumbnail backdrop (loads in milliseconds)
         AsyncImage(
             model = ImageRequest.Builder(context)
                 .data(thumbnailUrl)
-                .crossfade(150)
+                .crossfade(100)
                 .precision(Precision.INEXACT)
                 .build(),
             contentDescription = media.filename,
@@ -124,11 +134,11 @@ fun ProgressiveMediaImage(
                 }
         )
 
-        // Stage 2: High-resolution full original loaded with crystal clarity
+        // Stage 2: High-resolution full original loaded seamlessly
         AsyncImage(
             model = ImageRequest.Builder(context)
                 .data(originalUrl)
-                .crossfade(400)
+                .crossfade(200)
                 .precision(Precision.EXACT)
                 .allowHardware(true)
                 .build(),

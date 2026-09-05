@@ -77,6 +77,14 @@ class PhotoVaultClient(
         return "$base/media/$fileId/preview?token=$token"
     }
 
+    fun getVideoStreamUrl(fileId: String): String {
+        return if (prefs.videoQuality.value == "preview") {
+            getPreviewUrl(fileId)
+        } else {
+            getOriginalUrl(fileId) // Default highest original quality
+        }
+    }
+
     suspend fun registerDevice(serverUrl: String, deviceName: String): Result<DeviceRegistrationResponse> =
         withContext(Dispatchers.IO) {
             try {

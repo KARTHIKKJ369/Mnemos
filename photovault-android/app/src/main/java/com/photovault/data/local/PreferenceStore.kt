@@ -25,6 +25,9 @@ class PreferenceStore(context: Context) {
     private val _autoBackup = MutableStateFlow(prefs.getBoolean(KEY_AUTO_BACKUP, false))
     val autoBackup: StateFlow<Boolean> = _autoBackup.asStateFlow()
 
+    private val _videoQuality = MutableStateFlow(prefs.getString(KEY_VIDEO_QUALITY, "original") ?: "original")
+    val videoQuality: StateFlow<String> = _videoQuality.asStateFlow()
+
     private val _downloadedFileIds = MutableStateFlow<Set<String>>(
         prefs.getStringSet(KEY_DOWNLOADED_FILE_IDS, emptySet()) ?: emptySet()
     )
@@ -53,6 +56,11 @@ class PreferenceStore(context: Context) {
         _autoBackup.value = enabled
     }
 
+    fun setVideoQuality(quality: String) {
+        prefs.edit().putString(KEY_VIDEO_QUALITY, quality).apply()
+        _videoQuality.value = quality
+    }
+
     fun markFileDownloaded(fileId: String) {
         val updated = _downloadedFileIds.value + fileId
         prefs.edit().putStringSet(KEY_DOWNLOADED_FILE_IDS, updated).apply()
@@ -75,6 +83,7 @@ class PreferenceStore(context: Context) {
         _authToken.value = ""
         _deviceId.value = ""
         _downloadedFileIds.value = emptySet()
+        _videoQuality.value = "original"
     }
 
     val isConfigured: Boolean
@@ -86,6 +95,7 @@ class PreferenceStore(context: Context) {
         private const val KEY_DEVICE_ID = "device_id"
         private const val KEY_GRID_COLUMNS = "grid_columns"
         private const val KEY_AUTO_BACKUP = "auto_backup"
+        private const val KEY_VIDEO_QUALITY = "video_quality"
         private const val KEY_DOWNLOADED_FILE_IDS = "downloaded_file_ids"
     }
 }

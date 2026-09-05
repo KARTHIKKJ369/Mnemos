@@ -1,5 +1,7 @@
 package com.photovault.ui.screens.viewer
 
+import android.app.Activity
+import android.content.pm.ActivityInfo
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
@@ -34,16 +36,20 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.AspectRatio
 import androidx.compose.material.icons.filled.Camera
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.CropFree
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Devices
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
+import androidx.compose.material.icons.filled.FullscreenExit
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Map
 import androidx.compose.material.icons.filled.Schedule
+import androidx.compose.material.icons.filled.ScreenRotation
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -52,6 +58,7 @@ import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -88,6 +95,7 @@ import com.photovault.ui.theme.FrameWhite
 import com.photovault.ui.theme.MnemosType
 import com.photovault.ui.theme.SignalRed
 import com.photovault.ui.theme.SignalRedSubtle
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class)
@@ -97,14 +105,41 @@ fun MediaViewerScreen(
     initialMediaList: List<MediaItem> = emptyList(),
     onClose: () -> Unit
 ) {
-    BackHandler(enabled = true) {
-        onClose()
-    }
-
     val app = PhotoVaultApplication.instance
     val context = LocalContext.current
     val view = LocalView.current
     val scope = rememberCoroutineScope()
+    val activity = context as? Activity
+
+    var isLandscapeOrientation by remember { mutableStateOf(false) }
+    var isFillScreen by remember { mutableStateOf(false) }
+
+    fun toggleOrientation() {
+        HapticHelper.performClick(view)
+        if (isLandscapeOrientation) {
+            isLandscapeOrientation = false
+            activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
+        } else {
+            isLandscapeOrientation = true
+            activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+        }
+    }
+
+    fun toggleFillScreen() {
+        HapticHelper.performClick(view)
+        isFillScreen = !isFillScreen
+    }
+
+    BackHandler(enabled = true) {
+        activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
+        onClose()
+    }
+
+    DisposableEffect(Unit) {
+        onDispose {
+            activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
+        }
+    }
 
     var mediaList by remember(initialMediaList) {
         mutableStateOf(if (initialMediaList.isNotEmpty()) initialMediaList else emptyList())
@@ -145,6 +180,14 @@ fun MediaViewerScreen(
 
     val currentMedia = mediaList.getOrNull(pagerState.currentPage) ?: return
     val filmstripListState = rememberLazyListState()
+
+    // Auto-hide top bar & controls after 3.5s delay of inactivity
+    LaunchedEffect(controlsVisible, pagerState.currentPage) {
+        if (controlsVisible) {
+            delay(3500)
+            controlsVisible = false
+        }
+    }
 
     LaunchedEffect(pagerState.currentPage) {
         if (!currentMedia.isVideo) {
@@ -194,9 +237,12 @@ fun MediaViewerScreen(
         ) { page ->
             val item = mediaList[page]
             if (item.isVideo) {
-                val videoUrl = app.apiClient.getOriginalUrl(item.fileId)
+                val videoUrl = app.apiClient.getVideoStreamUrl(item.fileId)
                 ExoVideoPlayer(
                     videoUrl = videoUrl,
+                    isFillScreen = isFillScreen,
+                    onToggleFillScreen = { toggleFillScreen() },
+                    onTap = { controlsVisible = !controlsVisible },
                     modifier = Modifier.fillMaxSize()
                 )
             } else {
@@ -204,9 +250,11 @@ fun MediaViewerScreen(
                     media = item,
                     modifier = Modifier.fillMaxSize(),
                     isZoomable = true,
+                    isFillScreen = isFillScreen,
                     onTap = {
                         controlsVisible = !controlsVisible
-                    }
+                    },
+                    onToggleFillScreen = { toggleFillScreen() }
                 )
             }
         }
@@ -218,7 +266,7 @@ fun MediaViewerScreen(
             exit = fadeOut() + slideOutVertically { -it },
             modifier = Modifier.align(Alignment.TopCenter)
         ) {
-            Box(
+            Column(
                 modifier = Modifier
                     .fillMaxWidth()
                     .background(
@@ -227,7 +275,8 @@ fun MediaViewerScreen(
                         )
                     )
                     .statusBarsPadding()
-                    .padding(horizontal = 16.dp, vertical = 8.dp)
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -243,6 +292,7 @@ fun MediaViewerScreen(
                             .border(1.dp, FrameBorder, CircleShape)
                             .clickable {
                                 HapticHelper.performClick(view)
+                                activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
                                 onClose()
                             },
                         contentAlignment = Alignment.Center
@@ -255,7 +305,7 @@ fun MediaViewerScreen(
                         )
                     }
 
-                    // Center: Counter & Node Capsule
+                    // Center: Counter Capsule
                     Box(
                         modifier = Modifier
                             .clip(RoundedCornerShape(20.dp))
@@ -290,6 +340,32 @@ fun MediaViewerScreen(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(2.dp)
                     ) {
+                        // Fit vs Fill Screen Toggle
+                        IconButton(
+                            onClick = { toggleFillScreen() },
+                            modifier = Modifier.size(36.dp)
+                        ) {
+                            Icon(
+                                imageVector = if (isFillScreen) Icons.Default.CropFree else Icons.Default.AspectRatio,
+                                contentDescription = if (isFillScreen) "Original Aspect" else "Fill Screen",
+                                tint = if (isFillScreen) SignalRed else FrameWhite,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
+
+                        // Fullscreen / Rotate Screen Toggle
+                        IconButton(
+                            onClick = { toggleOrientation() },
+                            modifier = Modifier.size(36.dp)
+                        ) {
+                            Icon(
+                                imageVector = if (isLandscapeOrientation) Icons.Default.FullscreenExit else Icons.Default.ScreenRotation,
+                                contentDescription = "Rotate Screen",
+                                tint = if (isLandscapeOrientation) SignalRed else FrameWhite,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
+
                         // Download Button
                         IconButton(
                             onClick = { downloadCurrent() },
@@ -379,7 +455,7 @@ fun MediaViewerScreen(
         }
 
         // Bottom Gradient Scrim & Floating Filmstrip Carousel
-        if (!currentMedia.isVideo && mediaList.size > 1) {
+        if (!currentMedia.isVideo && mediaList.size > 1 && !isLandscapeOrientation) {
             AnimatedVisibility(
                 visible = controlsVisible,
                 enter = fadeIn() + slideInVertically { it },

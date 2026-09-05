@@ -61,6 +61,7 @@ import com.photovault.ui.theme.SignalRed
 import com.photovault.ui.theme.SignalRedSubtle
 import java.io.File
 
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Sync
 import com.photovault.ui.components.MnemosSwitch
 
@@ -78,6 +79,7 @@ fun SettingsScreen(
     val serverUrl by app.preferenceStore.serverUrl.collectAsState()
     val deviceId by app.preferenceStore.deviceId.collectAsState()
     val autoBackup by app.preferenceStore.autoBackup.collectAsState()
+    val videoQuality by app.preferenceStore.videoQuality.collectAsState()
 
     var healthData by remember { mutableStateOf<HealthResponse?>(null) }
     var cacheSizeMb by remember { mutableStateOf(0L) }
@@ -133,6 +135,70 @@ fun SettingsScreen(
                     )
                 }
             )
+
+            // Video Playback Quality Card
+            MnemosCard(modifier = Modifier.fillMaxWidth()) {
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(32.dp)
+                                .clip(CircleShape)
+                                .background(SignalRedSubtle),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.PlayArrow,
+                                contentDescription = null,
+                                tint = SignalRed,
+                                modifier = Modifier.size(16.dp)
+                            )
+                        }
+                        Column {
+                            Text(
+                                text = "VIDEO PLAYBACK QUALITY",
+                                style = MnemosType.CardTitle15,
+                                color = FrameWhite
+                            )
+                            Text(
+                                text = "Stream raw original vs fast preview",
+                                style = MnemosType.BodySecondary13,
+                                color = FrameGray500
+                            )
+                        }
+                    }
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        MnemosButton(
+                            text = "RAW ORIGINAL (4K/HD)",
+                            onClick = {
+                                HapticHelper.performClick(view)
+                                app.preferenceStore.setVideoQuality("original")
+                            },
+                            modifier = Modifier.weight(1f),
+                            variant = if (videoQuality == "original") ButtonVariant.PRIMARY else ButtonVariant.SECONDARY
+                        )
+                        MnemosButton(
+                            text = "PREVIEW (720P)",
+                            onClick = {
+                                HapticHelper.performClick(view)
+                                app.preferenceStore.setVideoQuality("preview")
+                            },
+                            modifier = Modifier.weight(1f),
+                            variant = if (videoQuality == "preview") ButtonVariant.PRIMARY else ButtonVariant.SECONDARY
+                        )
+                    }
+                }
+            }
 
             // Server Connection Card
             MnemosCard(modifier = Modifier.fillMaxWidth()) {

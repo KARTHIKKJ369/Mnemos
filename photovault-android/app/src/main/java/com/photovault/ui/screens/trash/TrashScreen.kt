@@ -50,10 +50,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.photovault.PhotoVaultApplication
@@ -61,17 +59,16 @@ import com.photovault.data.model.MediaItem
 import com.photovault.ui.components.ButtonVariant
 import com.photovault.ui.components.HapticHelper
 import com.photovault.ui.components.MnemosButton
+import com.photovault.ui.components.RedDotIndicator
 import com.photovault.ui.screens.gallery.GalleryTile
-import com.photovault.ui.theme.IrisLight
-import com.photovault.ui.theme.IrisPrimary
+import com.photovault.ui.theme.FrameBlack
+import com.photovault.ui.theme.FrameBorder
+import com.photovault.ui.theme.FrameGray300
+import com.photovault.ui.theme.FrameGray500
+import com.photovault.ui.theme.FrameSurface
+import com.photovault.ui.theme.FrameWhite
 import com.photovault.ui.theme.MnemosType
-import com.photovault.ui.theme.Slate200
-import com.photovault.ui.theme.Slate400
-import com.photovault.ui.theme.Slate50
-import com.photovault.ui.theme.Slate800
-import com.photovault.ui.theme.Slate900
-import com.photovault.ui.theme.Slate950
-import com.photovault.ui.theme.TomatoRed
+import com.photovault.ui.theme.SignalRed
 import kotlinx.coroutines.launch
 
 @Composable
@@ -156,7 +153,7 @@ fun TrashScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Slate950)
+            .background(FrameBlack)
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
             // Top Bar
@@ -176,18 +173,24 @@ fun TrashScreen(
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         IconButton(onClick = onNavigateBack) {
-                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Slate50)
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = FrameWhite)
                         }
                         Column {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                RedDotIndicator(size = 6.dp)
+                                Text(
+                                    text = "TRASH // REPOSITORY",
+                                    style = MnemosType.Headline28.copy(fontSize = 18.sp),
+                                    color = FrameWhite
+                                )
+                            }
                             Text(
-                                text = "Trash",
-                                style = MnemosType.PageTitle20,
-                                color = Slate50
-                            )
-                            Text(
-                                text = "${trashList.size} deleted items",
-                                style = MnemosType.Mono12,
-                                color = Slate400
+                                text = "${trashList.size} DELETED BLOBS",
+                                style = MnemosType.Mono11,
+                                color = FrameGray500
                             )
                         }
                     }
@@ -202,7 +205,7 @@ fun TrashScreen(
                                 Icon(
                                     imageVector = Icons.Default.DeleteForever,
                                     contentDescription = "Empty Trash",
-                                    tint = TomatoRed
+                                    tint = SignalRed
                                 )
                             }
 
@@ -215,7 +218,7 @@ fun TrashScreen(
                                 Icon(
                                     imageVector = Icons.Default.Checklist,
                                     contentDescription = "Select",
-                                    tint = if (isSelectionMode) IrisLight else Slate400
+                                    tint = if (isSelectionMode) SignalRed else FrameGray300
                                 )
                             }
                         }
@@ -225,7 +228,7 @@ fun TrashScreen(
                             HapticHelper.performClick(view)
                             loadTrash()
                         }) {
-                            Icon(Icons.Default.Refresh, contentDescription = "Refresh", tint = Slate400)
+                            Icon(Icons.Default.Refresh, contentDescription = "Refresh", tint = FrameGray300)
                         }
                     }
                 }
@@ -236,7 +239,7 @@ fun TrashScreen(
                     modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.Center
                 ) {
-                    CircularProgressIndicator(color = IrisPrimary, strokeWidth = 2.dp)
+                    CircularProgressIndicator(color = SignalRed, strokeWidth = 2.dp)
                 }
             } else if (trashList.isEmpty()) {
                 Box(
@@ -250,11 +253,11 @@ fun TrashScreen(
                         Icon(
                             imageVector = Icons.Default.AutoDelete,
                             contentDescription = null,
-                            tint = Slate400,
+                            tint = FrameGray500,
                             modifier = Modifier.size(44.dp)
                         )
-                        Text("Trash is Empty", color = Slate50, style = MnemosType.CardTitle15)
-                        Text("Deleted photos and videos will appear here", color = Slate400, style = MnemosType.BodySecondary13)
+                        Text("TRASH EMPTY", color = FrameWhite, style = MnemosType.CardTitle15)
+                        Text("DELETED ITEMS APPEAR HERE BEFORE PURGE", color = FrameGray500, style = MnemosType.Mono11)
                     }
                 }
             } else {
@@ -298,9 +301,9 @@ fun TrashScreen(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(Slate900)
-                    .border(1.dp, Slate800, RoundedCornerShape(12.dp))
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(FrameSurface)
+                    .border(1.dp, FrameBorder, RoundedCornerShape(8.dp))
                     .padding(horizontal = 14.dp, vertical = 10.dp)
             ) {
                 Row(
@@ -308,17 +311,17 @@ fun TrashScreen(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    // Restore Button (Iris)
+                    // Restore Button (White)
                     MnemosButton(
-                        text = "Restore (${selectedFileIds.size})",
+                        text = "RESTORE (${selectedFileIds.size})",
                         onClick = { restoreSelected() },
                         variant = ButtonVariant.PRIMARY,
                         icon = Icons.Default.RestoreFromTrash
                     )
 
-                    // Delete Forever Button (Tomato Red)
+                    // Delete Forever Button (Signal Red)
                     MnemosButton(
-                        text = "Delete Forever",
+                        text = "PURGE FOREVER",
                         onClick = { permanentDeleteSelected() },
                         variant = ButtonVariant.DESTRUCTIVE,
                         icon = Icons.Default.DeleteForever
@@ -332,28 +335,34 @@ fun TrashScreen(
             AlertDialog(
                 onDismissRequest = { showEmptyTrashDialog = false },
                 title = {
-                    Text("Empty Entire Trash?", color = Slate50, style = MnemosType.CardTitle15)
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        RedDotIndicator(size = 6.dp)
+                        Text("PURGE ENTIRE TRASH?", color = FrameWhite, style = MnemosType.CardTitle15)
+                    }
                 },
                 text = {
                     Text(
-                        "All ${trashList.size} items in the trash will be permanently deleted from the vault server. This action cannot be undone.",
-                        color = Slate400,
+                        "All ${trashList.size} items will be permanently erased from disk. This operation is non-reversible.",
+                        color = FrameGray300,
                         style = MnemosType.BodySecondary13
                     )
                 },
                 confirmButton = {
                     MnemosButton(
-                        text = "Empty Trash Permanently",
+                        text = "ERASE PERMANENTLY",
                         onClick = { emptyEntireTrash() },
                         variant = ButtonVariant.DESTRUCTIVE
                     )
                 },
                 dismissButton = {
                     TextButton(onClick = { showEmptyTrashDialog = false }) {
-                        Text("Cancel", color = Slate400)
+                        Text("CANCEL", style = MnemosType.Mono11, color = FrameGray500)
                     }
                 },
-                containerColor = Slate900
+                containerColor = FrameSurface
             )
         }
     }

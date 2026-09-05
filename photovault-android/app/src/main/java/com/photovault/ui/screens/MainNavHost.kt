@@ -23,13 +23,6 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.CloudUpload
-import androidx.compose.material.icons.filled.Collections
-import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -39,33 +32,35 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
+import com.photovault.ui.components.FrameBottomStatusBar
 import com.photovault.ui.components.HapticHelper
+import com.photovault.ui.components.RedDotIndicator
 import com.photovault.ui.screens.backup.BackupScreen
 import com.photovault.ui.screens.devices.DevicesScreen
 import com.photovault.ui.screens.gallery.GalleryScreen
-import com.photovault.ui.screens.search.SearchScreen
 import com.photovault.ui.screens.settings.SettingsScreen
 import com.photovault.ui.screens.trash.TrashScreen
 import com.photovault.ui.screens.viewer.MediaViewerScreen
-import com.photovault.ui.theme.IrisLight
-import com.photovault.ui.theme.IrisPrimary
+import com.photovault.ui.theme.FrameBlack
+import com.photovault.ui.theme.FrameBorder
+import com.photovault.ui.theme.FrameGray500
+import com.photovault.ui.theme.FrameGray700
+import com.photovault.ui.theme.FrameSurface
+import com.photovault.ui.theme.FrameWhite
 import com.photovault.ui.theme.MnemosType
-import com.photovault.ui.theme.Slate400
-import com.photovault.ui.theme.Slate600
-import com.photovault.ui.theme.Slate800
-import com.photovault.ui.theme.Slate900
-import com.photovault.ui.theme.Slate950
+import com.photovault.ui.theme.RobotoMonoFontFamily
+import com.photovault.ui.theme.SpaceGroteskFontFamily
 
-enum class NavTab(val title: String, val icon: ImageVector) {
-    LIBRARY("Library", Icons.Default.Collections),
-    SEARCH("Search", Icons.Default.Search),
-    BACKUP("Backup", Icons.Default.CloudUpload),
-    SETTINGS("Settings", Icons.Default.Settings)
+enum class FrameNavTab(val number: String, val title: String) {
+    VAULT("01", "VAULT"),
+    NODES("02", "NODES"),
+    SYNC("03", "SYNC"),
+    SYSTEM("04", "SYSTEM")
 }
 
 @Composable
@@ -73,74 +68,75 @@ fun MainNavHost(
     onLogout: () -> Unit
 ) {
     val view = LocalView.current
-    var selectedTab by remember { mutableStateOf(NavTab.LIBRARY) }
+    var selectedTab by remember { mutableStateOf(FrameNavTab.VAULT) }
     var activeViewerFileId by remember { mutableStateOf<String?>(null) }
     var galleryFilterDeviceId by remember { mutableStateOf<String?>(null) }
     var showTrashScreen by remember { mutableStateOf(false) }
-    var showDevicesScreen by remember { mutableStateOf(false) }
 
-    // Back handling: if viewing media, close viewer; if on overlay, close overlay; if on another tab, return to Library
-    BackHandler(enabled = activeViewerFileId == null && !showTrashScreen && !showDevicesScreen && selectedTab != NavTab.LIBRARY) {
-        selectedTab = NavTab.LIBRARY
+    // Back handling: if on a non-VAULT tab, return to (01) VAULT
+    BackHandler(enabled = activeViewerFileId == null && !showTrashScreen && selectedTab != FrameNavTab.VAULT) {
+        selectedTab = FrameNavTab.VAULT
     }
 
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Slate950)
+            .background(FrameBlack)
     ) {
-        // Main Content Area (padding bottom 56dp for bottom bar)
+        // Main Content Area (padding bottom 68dp for FRAME bottom navigation + live clock)
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(bottom = 56.dp)
+                .padding(bottom = 68.dp)
         ) {
             AnimatedContent(
                 targetState = selectedTab,
                 transitionSpec = {
-                    fadeIn(animationSpec = spring(stiffness = 600f)) togetherWith
-                            fadeOut(animationSpec = spring(stiffness = 600f))
+                    fadeIn(animationSpec = spring(stiffness = 700f)) togetherWith
+                            fadeOut(animationSpec = spring(stiffness = 700f))
                 },
                 label = "tabTransition"
             ) { tab ->
                 when (tab) {
-                    NavTab.LIBRARY -> GalleryScreen(
+                    FrameNavTab.VAULT -> GalleryScreen(
                         initialDeviceId = galleryFilterDeviceId,
                         onMediaSelected = { fileId ->
                             activeViewerFileId = fileId
                         }
                     )
-                    NavTab.SEARCH -> SearchScreen(
-                        onMediaSelected = { fileId ->
-                            activeViewerFileId = fileId
+                    FrameNavTab.NODES -> DevicesScreen(
+                        onNavigateToGalleryWithDevice = { deviceId, _ ->
+                            galleryFilterDeviceId = deviceId
+                            selectedTab = FrameNavTab.VAULT
                         }
                     )
-                    NavTab.BACKUP -> BackupScreen()
-                    NavTab.SETTINGS -> SettingsScreen(
+                    FrameNavTab.SYNC -> BackupScreen()
+                    FrameNavTab.SYSTEM -> SettingsScreen(
                         onLogout = onLogout,
                         onOpenTrash = { showTrashScreen = true },
-                        onOpenDevices = { showDevicesScreen = true }
+                        onOpenDevices = { selectedTab = FrameNavTab.NODES }
                     )
                 }
             }
         }
 
-        // Bottom Navigation Bar (Solid Slate900, 1dp Slate800 top border, Iris underline on active)
-        Box(
+        // FRAME // OS Bottom Navigation Bar
+        Column(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .fillMaxWidth()
-                .background(Slate900)
-                .border(width = 1.dp, color = Slate800)
+                .background(FrameSurface)
+                .border(width = 1.dp, color = FrameBorder)
                 .navigationBarsPadding()
-                .height(56.dp)
         ) {
             Row(
-                modifier = Modifier.fillMaxSize(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(48.dp),
                 horizontalArrangement = Arrangement.SpaceAround,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                NavTab.entries.forEach { tab ->
+                FrameNavTab.entries.forEach { tab ->
                     val isSelected = selectedTab == tab
                     val scale by animateFloatAsState(
                         targetValue = if (isSelected) 1.0f else 0.96f,
@@ -151,14 +147,14 @@ fun MainNavHost(
                     Box(
                         modifier = Modifier
                             .weight(1f)
-                            .height(56.dp)
+                            .height(48.dp)
                             .scale(scale)
                             .clickable(
                                 interactionSource = remember { MutableInteractionSource() },
                                 indication = null,
                                 onClick = {
                                     HapticHelper.performClick(view)
-                                    if (tab == NavTab.LIBRARY && selectedTab != NavTab.LIBRARY) {
+                                    if (tab == FrameNavTab.VAULT && selectedTab != FrameNavTab.VAULT) {
                                         galleryFilterDeviceId = null
                                     }
                                     selectedTab = tab
@@ -166,48 +162,31 @@ fun MainNavHost(
                             ),
                         contentAlignment = Alignment.Center
                     ) {
-                        Column(
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.Center
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(5.dp)
                         ) {
-                            Icon(
-                                imageVector = tab.icon,
-                                contentDescription = tab.title,
-                                tint = if (isSelected) IrisLight else Slate400,
-                                modifier = Modifier.size(20.dp)
-                            )
-                            Spacer(modifier = Modifier.height(3.dp))
+                            if (isSelected) {
+                                RedDotIndicator(size = 5.dp)
+                            }
                             Text(
-                                text = tab.title,
-                                style = MnemosType.Label11.copy(fontSize = 11.sp),
-                                color = if (isSelected) IrisLight else Slate400
-                            )
-                            Spacer(modifier = Modifier.height(2.dp))
-                            // Crisp 2dp Iris underline on active state
-                            Box(
-                                modifier = Modifier
-                                    .width(20.dp)
-                                    .height(2.dp)
-                                    .background(if (isSelected) IrisPrimary else Color.Transparent)
+                                text = "(${tab.number}) ${tab.title}",
+                                fontFamily = RobotoMonoFontFamily,
+                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                fontSize = 11.sp,
+                                letterSpacing = 0.04.em,
+                                color = if (isSelected) FrameWhite else FrameGray500
                             )
                         }
                     }
                 }
             }
+
+            // Bottom Live Time & Server Status Ticker
+            FrameBottomStatusBar(statusText = "TAILSCALE SECURE")
         }
 
-        // Connected Devices Roster overlay
-        if (showDevicesScreen) {
-            DevicesScreen(
-                onNavigateToGalleryWithDevice = { deviceId, _ ->
-                    galleryFilterDeviceId = deviceId
-                    showDevicesScreen = false
-                    selectedTab = NavTab.LIBRARY
-                }
-            )
-        }
-
-        // Trash & Deleted Items overlay
+        // Trash Screen Overlay
         if (showTrashScreen) {
             TrashScreen(
                 onNavigateBack = {

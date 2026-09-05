@@ -78,17 +78,16 @@ import com.photovault.ui.components.ExoVideoPlayer
 import com.photovault.ui.components.HapticHelper
 import com.photovault.ui.components.MnemosButton
 import com.photovault.ui.components.ProgressiveMediaImage
-import com.photovault.ui.theme.IrisLight
-import com.photovault.ui.theme.IrisPrimary
-import com.photovault.ui.theme.IrisSubtle
+import com.photovault.ui.components.RedDotIndicator
+import com.photovault.ui.theme.FrameBlack
+import com.photovault.ui.theme.FrameBorder
+import com.photovault.ui.theme.FrameGray300
+import com.photovault.ui.theme.FrameGray500
+import com.photovault.ui.theme.FrameSurface
+import com.photovault.ui.theme.FrameWhite
 import com.photovault.ui.theme.MnemosType
-import com.photovault.ui.theme.Slate200
-import com.photovault.ui.theme.Slate400
-import com.photovault.ui.theme.Slate50
-import com.photovault.ui.theme.Slate800
-import com.photovault.ui.theme.Slate900
-import com.photovault.ui.theme.Slate950
-import com.photovault.ui.theme.TomatoRed
+import com.photovault.ui.theme.SignalRed
+import com.photovault.ui.theme.SignalRedSubtle
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class)
@@ -127,7 +126,7 @@ fun MediaViewerScreen(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(Slate950)
+                .background(FrameBlack)
         )
         return
     }
@@ -171,7 +170,7 @@ fun MediaViewerScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Slate950)
+            .background(FrameBlack)
     ) {
         // Main Media Horizontal Pager
         HorizontalPager(
@@ -205,7 +204,7 @@ fun MediaViewerScreen(
             }
         }
 
-        // Top Floating Pill Bar
+        // Top Floating Action Bar
         AnimatedVisibility(
             visible = controlsVisible,
             enter = fadeIn() + slideInVertically { -it },
@@ -223,10 +222,10 @@ fun MediaViewerScreen(
                 // Back Button
                 Box(
                     modifier = Modifier
-                        .size(42.dp)
+                        .size(40.dp)
                         .clip(CircleShape)
-                        .background(Slate900)
-                        .border(1.dp, Slate800, CircleShape)
+                        .background(FrameSurface)
+                        .border(1.dp, FrameBorder, CircleShape)
                         .clickable {
                             HapticHelper.performClick(view)
                             onClose()
@@ -236,7 +235,7 @@ fun MediaViewerScreen(
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                         contentDescription = "Back",
-                        tint = Slate50,
+                        tint = FrameWhite,
                         modifier = Modifier.size(18.dp)
                     )
                 }
@@ -244,24 +243,24 @@ fun MediaViewerScreen(
                 // Filename & Node Badge
                 Box(
                     modifier = Modifier
-                        .clip(RoundedCornerShape(20.dp))
-                        .background(Slate900)
-                        .border(1.dp, Slate800, RoundedCornerShape(20.dp))
-                        .padding(horizontal = 14.dp, vertical = 6.dp)
+                        .clip(RoundedCornerShape(6.dp))
+                        .background(FrameSurface)
+                        .border(1.dp, FrameBorder, RoundedCornerShape(6.dp))
+                        .padding(horizontal = 12.dp, vertical = 6.dp)
                 ) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Text(
-                            text = currentMedia.filename,
-                            style = MnemosType.CardTitle15.copy(fontSize = 13.sp),
-                            color = Slate50,
+                            text = currentMedia.filename.uppercase(),
+                            style = MnemosType.Mono12.copy(fontWeight = FontWeight.Bold),
+                            color = FrameWhite,
                             maxLines = 1
                         )
                         currentMedia.uploadedByDeviceName?.let { devName ->
                             if (devName.isNotBlank()) {
                                 Text(
-                                    text = "Node: $devName",
-                                    style = MnemosType.Mono12.copy(fontSize = 10.sp),
-                                    color = IrisLight
+                                    text = "NODE // ${devName.uppercase()}",
+                                    style = MnemosType.Mono11.copy(fontSize = 9.sp),
+                                    color = FrameGray500
                                 )
                             }
                         }
@@ -271,9 +270,9 @@ fun MediaViewerScreen(
                 // Actions Pill (Download, Favorite, Info, Delete)
                 Row(
                     modifier = Modifier
-                        .clip(RoundedCornerShape(20.dp))
-                        .background(Slate900)
-                        .border(1.dp, Slate800, RoundedCornerShape(20.dp))
+                        .clip(RoundedCornerShape(6.dp))
+                        .background(FrameSurface)
+                        .border(1.dp, FrameBorder, RoundedCornerShape(6.dp))
                         .padding(horizontal = 4.dp, vertical = 2.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
@@ -286,13 +285,13 @@ fun MediaViewerScreen(
                             CircularProgressIndicator(
                                 modifier = Modifier.size(16.dp),
                                 strokeWidth = 2.dp,
-                                color = IrisPrimary
+                                color = SignalRed
                             )
                         } else {
                             Icon(
                                 imageVector = Icons.Default.Download,
                                 contentDescription = "Download to Device",
-                                tint = IrisLight,
+                                tint = FrameWhite,
                                 modifier = Modifier.size(18.dp)
                             )
                         }
@@ -312,7 +311,7 @@ fun MediaViewerScreen(
                         Icon(
                             imageVector = if (currentMedia.favorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
                             contentDescription = "Favorite",
-                            tint = if (currentMedia.favorite) IrisPrimary else Slate400,
+                            tint = if (currentMedia.favorite) SignalRed else FrameGray300,
                             modifier = Modifier.size(18.dp)
                         )
                     }
@@ -325,7 +324,7 @@ fun MediaViewerScreen(
                         Icon(
                             imageVector = Icons.Default.Info,
                             contentDescription = "Info",
-                            tint = Slate400,
+                            tint = FrameGray300,
                             modifier = Modifier.size(18.dp)
                         )
                     }
@@ -341,7 +340,7 @@ fun MediaViewerScreen(
                         Icon(
                             imageVector = Icons.Default.Delete,
                             contentDescription = "Delete",
-                            tint = TomatoRed,
+                            tint = SignalRed,
                             modifier = Modifier.size(18.dp)
                         )
                     }
@@ -349,7 +348,7 @@ fun MediaViewerScreen(
             }
         }
 
-        // Bottom Filmstrip Carousel (hidden during video playback)
+        // Bottom Filmstrip Carousel
         if (!currentMedia.isVideo && mediaList.size > 1) {
             AnimatedVisibility(
                 visible = controlsVisible,
@@ -362,9 +361,9 @@ fun MediaViewerScreen(
             ) {
                 Box(
                     modifier = Modifier
-                        .clip(RoundedCornerShape(16.dp))
-                        .background(Slate900)
-                        .border(1.dp, Slate800, RoundedCornerShape(16.dp))
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(FrameSurface)
+                        .border(1.dp, FrameBorder, RoundedCornerShape(8.dp))
                         .padding(horizontal = 8.dp, vertical = 6.dp)
                 ) {
                     LazyRow(
@@ -382,7 +381,7 @@ fun MediaViewerScreen(
                             Box(
                                 modifier = Modifier
                                     .size(if (isSelected) 46.dp else 36.dp)
-                                    .clip(RoundedCornerShape(6.dp))
+                                    .clip(RoundedCornerShape(4.dp))
                                     .clickable {
                                         scope.launch {
                                             pagerState.animateScrollToPage(index)
@@ -390,7 +389,7 @@ fun MediaViewerScreen(
                                     }
                                     .then(
                                         if (isSelected) Modifier
-                                            .border(2.dp, IrisPrimary, RoundedCornerShape(6.dp))
+                                            .border(2.dp, SignalRed, RoundedCornerShape(4.dp))
                                         else Modifier
                                     )
                             ) {
@@ -415,8 +414,8 @@ fun MediaViewerScreen(
             ModalBottomSheet(
                 onDismissRequest = { showInfoSheet = false },
                 sheetState = rememberModalBottomSheetState(),
-                containerColor = Slate900,
-                scrimColor = Slate950.copy(alpha = 0.7f)
+                containerColor = FrameSurface,
+                scrimColor = FrameBlack.copy(alpha = 0.75f)
             ) {
                 Column(
                     modifier = Modifier
@@ -430,19 +429,25 @@ fun MediaViewerScreen(
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text(
-                            text = "Media Details",
-                            style = MnemosType.PageTitle20,
-                            color = Slate50
-                        )
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            RedDotIndicator(size = 6.dp)
+                            Text(
+                                text = "METADATA // SPECS",
+                                style = MnemosType.Headline28.copy(fontSize = 18.sp),
+                                color = FrameWhite
+                            )
+                        }
                         IconButton(onClick = { showInfoSheet = false }) {
-                            Icon(Icons.Default.Close, contentDescription = "Close", tint = Slate400)
+                            Icon(Icons.Default.Close, contentDescription = "Close", tint = FrameGray500)
                         }
                     }
 
                     // Download to device button inside sheet
                     MnemosButton(
-                        text = "Download Original to Gallery",
+                        text = "DOWNLOAD RAW ORIGINAL",
                         onClick = {
                             showInfoSheet = false
                             downloadCurrent()
@@ -455,47 +460,43 @@ fun MediaViewerScreen(
                     // Metadata rows
                     MetadataRow(
                         icon = Icons.Default.Devices,
-                        label = "Uploaded From",
-                        value = "${currentMedia.uploadedByDeviceName ?: "Server Admin"} (${currentMedia.uploadedByDeviceType?.uppercase() ?: "NODE"})"
+                        label = "UPLOADED NODE",
+                        value = "${currentMedia.uploadedByDeviceName ?: "SERVER ADMIN"} // ${currentMedia.uploadedByDeviceType?.uppercase() ?: "NODE"}"
                     )
 
                     MetadataRow(
                         icon = Icons.Default.Schedule,
-                        label = "Date",
-                        value = currentMedia.takenAt ?: currentMedia.uploadedAt,
-                        isMono = true
+                        label = "TIMESTAMP",
+                        value = currentMedia.takenAt ?: currentMedia.uploadedAt
                     )
 
                     MetadataRow(
                         icon = Icons.Default.Camera,
-                        label = "File Specs",
-                        value = "${currentMedia.filename} (${(currentMedia.sizeBytes / 1024.0 / 1024.0).format(2)} MB)",
-                        isMono = true
+                        label = "FILE SPEC",
+                        value = "${currentMedia.filename} // ${(currentMedia.sizeBytes / 1024.0 / 1024.0).format(2)} MB"
                     )
 
                     if (currentMedia.width != null && currentMedia.height != null) {
                         MetadataRow(
                             icon = Icons.Default.Camera,
-                            label = "Resolution",
-                            value = "${currentMedia.width} × ${currentMedia.height}",
-                            isMono = true
+                            label = "RESOLUTION",
+                            value = "${currentMedia.width} × ${currentMedia.height}"
                         )
                     }
 
                     if (currentMedia.cameraMake != null || currentMedia.cameraModel != null) {
                         MetadataRow(
                             icon = Icons.Default.Camera,
-                            label = "Camera",
-                            value = "${currentMedia.cameraMake ?: ""} ${currentMedia.cameraModel ?: ""}".trim()
+                            label = "CAMERA",
+                            value = "${currentMedia.cameraMake ?: ""} ${currentMedia.cameraModel ?: ""}".trim().uppercase()
                         )
                     }
 
                     if (currentMedia.gpsLat != null && currentMedia.gpsLon != null) {
                         MetadataRow(
                             icon = Icons.Default.Map,
-                            label = "GPS Coordinates",
-                            value = "${currentMedia.gpsLat.format(4)}, ${currentMedia.gpsLon.format(4)}",
-                            isMono = true
+                            label = "GPS",
+                            value = "${currentMedia.gpsLat.format(4)}, ${currentMedia.gpsLon.format(4)}"
                         )
                     }
 
@@ -510,8 +511,7 @@ fun MediaViewerScreen(
 private fun MetadataRow(
     icon: androidx.compose.ui.graphics.vector.ImageVector,
     label: String,
-    value: String,
-    isMono: Boolean = false
+    value: String
 ) {
     Row(
         modifier = Modifier.fillMaxWidth(),
@@ -522,17 +522,17 @@ private fun MetadataRow(
             modifier = Modifier
                 .size(32.dp)
                 .clip(CircleShape)
-                .background(IrisSubtle),
+                .background(SignalRedSubtle),
             contentAlignment = Alignment.Center
         ) {
-            Icon(icon, contentDescription = null, tint = IrisLight, modifier = Modifier.size(16.dp))
+            Icon(icon, contentDescription = null, tint = SignalRed, modifier = Modifier.size(16.dp))
         }
         Column {
-            Text(text = label, style = MnemosType.BodySecondary13.copy(fontSize = 11.sp), color = Slate400)
+            Text(text = label, style = MnemosType.Mono11.copy(fontSize = 10.sp), color = FrameGray500)
             Text(
                 text = value,
-                style = if (isMono) MnemosType.Mono12 else MnemosType.CardTitle15.copy(fontSize = 13.sp),
-                color = Slate50
+                style = MnemosType.Mono12,
+                color = FrameWhite
             )
         }
     }

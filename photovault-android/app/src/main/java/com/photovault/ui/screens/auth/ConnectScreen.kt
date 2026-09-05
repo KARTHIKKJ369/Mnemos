@@ -2,9 +2,11 @@ package com.photovault.ui.screens.auth
 
 import android.os.Build
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -38,18 +40,16 @@ import androidx.compose.ui.unit.sp
 import com.photovault.PhotoVaultApplication
 import com.photovault.ui.components.ButtonVariant
 import com.photovault.ui.components.MnemosButton
-import com.photovault.ui.theme.IrisLight
-import com.photovault.ui.theme.IrisPrimary
-import com.photovault.ui.theme.IrisSubtle
+import com.photovault.ui.components.RedDotIndicator
+import com.photovault.ui.theme.FrameBlack
+import com.photovault.ui.theme.FrameBorder
+import com.photovault.ui.theme.FrameGray300
+import com.photovault.ui.theme.FrameGray500
+import com.photovault.ui.theme.FrameSurface
+import com.photovault.ui.theme.FrameWhite
 import com.photovault.ui.theme.MnemosType
-import com.photovault.ui.theme.Slate200
-import com.photovault.ui.theme.Slate400
-import com.photovault.ui.theme.Slate50
-import com.photovault.ui.theme.Slate700
-import com.photovault.ui.theme.Slate800
-import com.photovault.ui.theme.Slate900
-import com.photovault.ui.theme.Slate950
-import com.photovault.ui.theme.TomatoRed
+import com.photovault.ui.theme.SignalRed
+import com.photovault.ui.theme.SignalRedSubtle
 import kotlinx.coroutines.launch
 
 @Composable
@@ -69,40 +69,47 @@ fun ConnectScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Slate950)
+            .background(FrameBlack)
             .padding(horizontal = 24.dp, vertical = 40.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
         Box(
             modifier = Modifier
-                .size(64.dp)
+                .size(60.dp)
                 .clip(CircleShape)
-                .background(IrisSubtle),
+                .background(SignalRedSubtle)
+                .border(1.dp, SignalRed, CircleShape),
             contentAlignment = Alignment.Center
         ) {
             Icon(
                 imageVector = Icons.Default.Lock,
                 contentDescription = null,
-                tint = IrisLight,
-                modifier = Modifier.size(28.dp)
+                tint = SignalRed,
+                modifier = Modifier.size(26.dp)
             )
         }
 
-        Spacer(modifier = Modifier.height(20.dp))
+        Spacer(modifier = Modifier.height(18.dp))
 
-        Text(
-            text = "MNEMOS",
-            style = MnemosType.Headline28.copy(fontSize = 24.sp, fontWeight = FontWeight.SemiBold),
-            color = Slate50
-        )
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            RedDotIndicator(size = 7.dp)
+            Text(
+                text = "FRAME // MNEMOS",
+                style = MnemosType.Headline28,
+                color = FrameWhite
+            )
+        }
 
         Spacer(modifier = Modifier.height(4.dp))
 
         Text(
-            text = "Private Vault & Cluster Backup",
-            style = MnemosType.BodySecondary13,
-            color = Slate400
+            text = "PRIVATE VAULT // HARDWARE NODE AUTH",
+            style = MnemosType.Mono11,
+            color = FrameGray500
         )
 
         Spacer(modifier = Modifier.height(32.dp))
@@ -113,22 +120,22 @@ fun ConnectScreen(
                 serverUrl = it
                 errorMessage = null
             },
-            label = { Text("Server URL (LAN or Tailscale IP)") },
-            placeholder = { Text("http://100.x.y.z:8080") },
-            leadingIcon = { Icon(Icons.Default.Dns, contentDescription = null, tint = IrisLight) },
+            label = { Text("SERVER URL // IP", style = MnemosType.Mono11) },
+            placeholder = { Text("http://100.x.y.z:8080", style = MnemosType.Mono12) },
+            leadingIcon = { Icon(Icons.Default.Dns, contentDescription = null, tint = SignalRed, modifier = Modifier.size(18.dp)) },
             singleLine = true,
             modifier = Modifier.fillMaxWidth(),
             colors = OutlinedTextFieldDefaults.colors(
-                focusedContainerColor = Slate900,
-                unfocusedContainerColor = Slate900,
-                focusedBorderColor = IrisPrimary,
-                unfocusedBorderColor = Slate800,
-                focusedLabelColor = IrisLight,
-                unfocusedLabelColor = Slate400,
-                focusedTextColor = Slate50,
-                unfocusedTextColor = Slate50
+                focusedContainerColor = FrameSurface,
+                unfocusedContainerColor = FrameSurface,
+                focusedBorderColor = SignalRed,
+                unfocusedBorderColor = FrameBorder,
+                focusedLabelColor = SignalRed,
+                unfocusedLabelColor = FrameGray500,
+                focusedTextColor = FrameWhite,
+                unfocusedTextColor = FrameWhite
             ),
-            shape = RoundedCornerShape(10.dp)
+            shape = RoundedCornerShape(6.dp)
         )
 
         Spacer(modifier = Modifier.height(14.dp))
@@ -136,29 +143,29 @@ fun ConnectScreen(
         OutlinedTextField(
             value = deviceName,
             onValueChange = { deviceName = it },
-            label = { Text("Node Name") },
-            leadingIcon = { Icon(Icons.Default.Smartphone, contentDescription = null, tint = Slate400) },
+            label = { Text("NODE IDENTIFIER", style = MnemosType.Mono11) },
+            leadingIcon = { Icon(Icons.Default.Smartphone, contentDescription = null, tint = FrameGray500, modifier = Modifier.size(18.dp)) },
             singleLine = true,
             modifier = Modifier.fillMaxWidth(),
             colors = OutlinedTextFieldDefaults.colors(
-                focusedContainerColor = Slate900,
-                unfocusedContainerColor = Slate900,
-                focusedBorderColor = IrisPrimary,
-                unfocusedBorderColor = Slate800,
-                focusedLabelColor = IrisLight,
-                unfocusedLabelColor = Slate400,
-                focusedTextColor = Slate50,
-                unfocusedTextColor = Slate50
+                focusedContainerColor = FrameSurface,
+                unfocusedContainerColor = FrameSurface,
+                focusedBorderColor = SignalRed,
+                unfocusedBorderColor = FrameBorder,
+                focusedLabelColor = SignalRed,
+                unfocusedLabelColor = FrameGray500,
+                focusedTextColor = FrameWhite,
+                unfocusedTextColor = FrameWhite
             ),
-            shape = RoundedCornerShape(10.dp)
+            shape = RoundedCornerShape(6.dp)
         )
 
         if (errorMessage != null) {
             Spacer(modifier = Modifier.height(12.dp))
             Text(
                 text = errorMessage ?: "",
-                color = TomatoRed,
-                style = MnemosType.BodySecondary13,
+                color = SignalRed,
+                style = MnemosType.Mono11,
                 modifier = Modifier.fillMaxWidth()
             )
         }
@@ -166,7 +173,7 @@ fun ConnectScreen(
         Spacer(modifier = Modifier.height(24.dp))
 
         MnemosButton(
-            text = "Connect to Vault",
+            text = "AUTHENTICATE NODE",
             onClick = {
                 if (serverUrl.isBlank()) {
                     errorMessage = "Please enter your server URL"

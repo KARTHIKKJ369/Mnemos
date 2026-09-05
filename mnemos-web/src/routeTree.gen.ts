@@ -16,11 +16,9 @@ import { Route as AppFavoritesRouteImport } from './routes/_app/favorites'
 import { Route as AppGalleryRouteImport } from './routes/_app/gallery'
 import { Route as AppSearchRouteImport } from './routes/_app/search'
 import { Route as AppSettingsRouteImport } from './routes/_app/settings'
-import { Route as AppStorageRouteImport } from './routes/_app/storage'
 import { Route as AppSyncRouteImport } from './routes/_app/sync'
 import { Route as AppTimelineRouteImport } from './routes/_app/timeline'
 import { Route as AppTrashRouteImport } from './routes/_app/trash'
-import { Route as AppVaultsRouteImport } from './routes/_app/vaults'
 
 const AppRoute = AppRouteImport.update({
   id: '/_app',
@@ -56,11 +54,6 @@ const AppSettingsRoute = AppSettingsRouteImport.update({
   path: '/settings',
   getParentRoute: () => AppRoute,
 } as any)
-const AppStorageRoute = AppStorageRouteImport.update({
-  id: '/storage',
-  path: '/storage',
-  getParentRoute: () => AppRoute,
-} as any)
 const AppSyncRoute = AppSyncRouteImport.update({
   id: '/sync',
   path: '/sync',
@@ -76,11 +69,6 @@ const AppTrashRoute = AppTrashRouteImport.update({
   path: '/trash',
   getParentRoute: () => AppRoute,
 } as any)
-const AppVaultsRoute = AppVaultsRouteImport.update({
-  id: '/vaults',
-  path: '/vaults',
-  getParentRoute: () => AppRoute,
-} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof AppIndexRoute
@@ -89,11 +77,9 @@ export interface FileRoutesByFullPath {
   '/gallery': typeof AppGalleryRoute
   '/search': typeof AppSearchRoute
   '/settings': typeof AppSettingsRoute
-  '/storage': typeof AppStorageRoute
   '/sync': typeof AppSyncRoute
   '/timeline': typeof AppTimelineRoute
   '/trash': typeof AppTrashRoute
-  '/vaults': typeof AppVaultsRoute
 }
 export interface FileRoutesByTo {
   '/devices': typeof AppDevicesRoute
@@ -101,11 +87,9 @@ export interface FileRoutesByTo {
   '/gallery': typeof AppGalleryRoute
   '/search': typeof AppSearchRoute
   '/settings': typeof AppSettingsRoute
-  '/storage': typeof AppStorageRoute
   '/sync': typeof AppSyncRoute
   '/timeline': typeof AppTimelineRoute
   '/trash': typeof AppTrashRoute
-  '/vaults': typeof AppVaultsRoute
   '/': typeof AppIndexRoute
 }
 export interface FileRoutesById {
@@ -116,11 +100,9 @@ export interface FileRoutesById {
   '/_app/gallery': typeof AppGalleryRoute
   '/_app/search': typeof AppSearchRoute
   '/_app/settings': typeof AppSettingsRoute
-  '/_app/storage': typeof AppStorageRoute
   '/_app/sync': typeof AppSyncRoute
   '/_app/timeline': typeof AppTimelineRoute
   '/_app/trash': typeof AppTrashRoute
-  '/_app/vaults': typeof AppVaultsRoute
   '/_app/': typeof AppIndexRoute
 }
 export interface FileRouteTypes {
@@ -132,11 +114,9 @@ export interface FileRouteTypes {
     | '/gallery'
     | '/search'
     | '/settings'
-    | '/storage'
     | '/sync'
     | '/timeline'
     | '/trash'
-    | '/vaults'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/devices'
@@ -144,11 +124,9 @@ export interface FileRouteTypes {
     | '/gallery'
     | '/search'
     | '/settings'
-    | '/storage'
     | '/sync'
     | '/timeline'
     | '/trash'
-    | '/vaults'
     | '/'
   id:
     | '__root__'
@@ -158,11 +136,9 @@ export interface FileRouteTypes {
     | '/_app/gallery'
     | '/_app/search'
     | '/_app/settings'
-    | '/_app/storage'
     | '/_app/sync'
     | '/_app/timeline'
     | '/_app/trash'
-    | '/_app/vaults'
     | '/_app/'
   fileRoutesById: FileRoutesById
 }
@@ -221,13 +197,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppSettingsRouteImport
       parentRoute: typeof AppRoute
     }
-    '/_app/storage': {
-      id: '/_app/storage'
-      path: '/storage'
-      fullPath: '/storage'
-      preLoaderRoute: typeof AppStorageRouteImport
-      parentRoute: typeof AppRoute
-    }
     '/_app/sync': {
       id: '/_app/sync'
       path: '/sync'
@@ -249,13 +218,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppTrashRouteImport
       parentRoute: typeof AppRoute
     }
-    '/_app/vaults': {
-      id: '/_app/vaults'
-      path: '/vaults'
-      fullPath: '/vaults'
-      preLoaderRoute: typeof AppVaultsRouteImport
-      parentRoute: typeof AppRoute
-    }
   }
 }
 
@@ -265,11 +227,9 @@ interface AppRouteChildren {
   AppGalleryRoute: typeof AppGalleryRoute
   AppSearchRoute: typeof AppSearchRoute
   AppSettingsRoute: typeof AppSettingsRoute
-  AppStorageRoute: typeof AppStorageRoute
   AppSyncRoute: typeof AppSyncRoute
   AppTimelineRoute: typeof AppTimelineRoute
   AppTrashRoute: typeof AppTrashRoute
-  AppVaultsRoute: typeof AppVaultsRoute
   AppIndexRoute: typeof AppIndexRoute
 }
 
@@ -279,11 +239,9 @@ const AppRouteChildren: AppRouteChildren = {
   AppGalleryRoute: AppGalleryRoute,
   AppSearchRoute: AppSearchRoute,
   AppSettingsRoute: AppSettingsRoute,
-  AppStorageRoute: AppStorageRoute,
   AppSyncRoute: AppSyncRoute,
   AppTimelineRoute: AppTimelineRoute,
   AppTrashRoute: AppTrashRoute,
-  AppVaultsRoute: AppVaultsRoute,
   AppIndexRoute: AppIndexRoute,
 }
 

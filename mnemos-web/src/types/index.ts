@@ -30,6 +30,9 @@ export interface Media {
   Deleted: boolean
   ThumbnailAvailable: boolean
   PreviewAvailable: boolean
+  UploadedByDeviceID?: string
+  UploadedByDeviceName?: string
+  UploadedByDeviceType?: string
 }
 
 /** Hash existence response from GET /files/exists */
@@ -73,11 +76,14 @@ export interface MediaSearchParams {
   from?: string         // YYYY-MM-DD
   to?: string           // YYYY-MM-DD
   favorite?: boolean
+  deleted?: boolean
   has_thumbnail?: boolean
   has_preview?: boolean
+  device_id?: string
+  exclude_device_id?: string
   limit?: number
   offset?: number
-  sort?: 'filename' | 'taken_at' | 'mime_type' | 'uploaded_at'
+  sort?: 'filename' | 'taken_at' | 'mime_type' | 'uploaded_at' | 'size_bytes' | 'location'
   order?: 'asc' | 'desc'
 }
 
@@ -88,20 +94,31 @@ export interface MediaSearchResponse {
   offset: number
 }
 
-/** Vault type */
-export type VaultType = 'legacy' | 'encrypted'
+/** Registered device summary from GET /devices */
+export interface DeviceSummary {
+  id: string
+  name: string
+  device_type: DeviceType
+  created_at: string
+  last_seen_at: string
+}
 
-/** Vault create response */
-export interface VaultCreateResponse {
-  vault_id: string
-  type: VaultType
-  salt?: string        // base64, only for encrypted
-  argon2?: {
-    time: number
-    memory_kib: number
-    threads: number
-  }
-  algorithm_version?: number
+/** Server health and storage status */
+export interface ServerHealth {
+  version: string
+  build_commit: string
+  uptime_seconds: number
+  database: string
+  blob_storage: string
+  workers: string
+  disk_free_bytes?: number
+  disk_total_bytes?: number
+  storage_path?: string
+  total_media?: number
+  total_photos?: number
+  total_videos?: number
+  vault_bytes?: number
+  total_devices?: number
 }
 
 /** Upload response */
@@ -151,6 +168,7 @@ export interface AuthSession {
   authToken: string
   deviceName: string
   serverUrl: string
+  isAdmin?: boolean
 }
 
 /** Sync state */
@@ -160,5 +178,29 @@ export interface SyncState {
   nextSince: number | null
   pendingCount: number
   error: string | null
+}
+
+export interface AuthBootstrapResponse {
+  is_admin: boolean
+  device_id?: string
+  auth_token?: string
+  device_name?: string
+  device_type?: DeviceType
+  network_allowed?: boolean
+}
+
+export interface ScanResult {
+  scanned: number
+  imported: number
+  already_indexed: number
+  errors: number
+}
+
+export interface ScanStatus {
+  running: boolean
+  last_path: string
+  last_started?: string
+  last_result?: ScanResult
+  last_error?: string
 }
 

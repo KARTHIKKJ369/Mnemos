@@ -153,7 +153,7 @@ func TestSyncIntegrationTwoDevices(t *testing.T) {
 	logger := slog.New(slog.NewJSONHandler(io.Discard, nil))
 	fileHandler := NewFileHandler(files.NewService(fileRepository, files.NoopExistenceCache{}), logger)
 	syncHandler := NewSyncHandler(syncService, logger)
-	router := NewRouter(logger, deviceService, ratelimit.NewRegistrationLimiter(), deviceService, uploadHandler, http.HandlerFunc(fileHandler.Exists), syncHandler)
+	router := NewRouter(logger, deviceService, ratelimit.NewRegistrationLimiter(), deviceService, uploadHandler, http.HandlerFunc(fileHandler.Exists), syncHandler, nil)
 
 	data := []byte("integration upload bytes")
 	uploadResponse := uploadViaRouter(t, router, registrationA.Token, "photo.jpg", data)
@@ -243,7 +243,7 @@ func newSyncRouter(t *testing.T) (http.Handler, syncTokens) {
 	logger := slog.New(slog.NewJSONHandler(io.Discard, nil))
 	fileHandler := NewFileHandler(files.NewService(files.NewRepository(db), files.NoopExistenceCache{}), logger)
 	syncHandler := NewSyncHandler(syncService, logger)
-	router := NewRouter(logger, deviceService, ratelimit.NewRegistrationLimiter(), deviceService, uploads.NewHandler(storage.NewBlobStore(layout), files.NewRepository(db), 1<<20, layout.Blobs, logger), http.HandlerFunc(fileHandler.Exists), syncHandler)
+	router := NewRouter(logger, deviceService, ratelimit.NewRegistrationLimiter(), deviceService, uploads.NewHandler(storage.NewBlobStore(layout), files.NewRepository(db), 1<<20, layout.Blobs, logger), http.HandlerFunc(fileHandler.Exists), syncHandler, nil)
 	return router, syncTokens{deviceA: registrationA.Token, deviceB: registrationB.Token}
 }
 

@@ -188,7 +188,7 @@ func newMediaRouter(t *testing.T, content []byte) (http.Handler, string, *sql.DB
 	syncHandler := NewSyncHandler(syncService, logger)
 	uploadHandler := uploads.NewHandler(storage.NewBlobStore(layout), fileRepository, 1<<20, layout.Blobs, logger)
 	fileHandler := NewFileHandler(files.NewService(fileRepository, nil), logger)
-	router := NewRouter(logger, deviceService, ratelimit.NewRegistrationLimiter(), deviceService, uploadHandler, http.HandlerFunc(fileHandler.Exists), syncHandler, mediaHandler)
+	router := NewRouter(logger, deviceService, ratelimit.NewRegistrationLimiter(), deviceService, uploadHandler, http.HandlerFunc(fileHandler.Exists), syncHandler, nil, mediaHandler)
 	return router, registration.Token, db, root
 }
 

@@ -11,6 +11,8 @@ import {
   favoriteMedia,
   unfavoriteMedia,
   deleteMedia,
+  restoreMedia,
+  permanentDeleteMedia,
   fetchMediaBlob,
 } from '@/api/client'
 import type { Media, MediaSearchParams, MediaSearchResponse } from '@/types'
@@ -88,11 +90,11 @@ export function useFavoriteMedia() {
       queryClient.setQueryData<Media>(mediaKeys.detail(id), (old) =>
         old ? { ...old, Favorite: favorite } : old,
       )
-      // Optimistic update in lists
+      // Optimistic update across all media lists/infinite queries
       queryClient.setQueriesData<InfiniteData<MediaSearchResponse>>(
-        { queryKey: mediaKeys.lists() },
+        { queryKey: mediaKeys.all },
         (old) => {
-          if (!old) return old
+          if (!old || !old.pages) return old
           return {
             ...old,
             pages: old.pages.map((page) => ({
@@ -103,7 +105,7 @@ export function useFavoriteMedia() {
         },
       )
     },
-    onError: () => {
+    onSettled: () => {
       queryClient.invalidateQueries({ queryKey: mediaKeys.all })
     },
   })
@@ -114,7 +116,27 @@ export function useDeleteMedia() {
   return useMutation({
     mutationFn: (id: string) => deleteMedia(id),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: mediaKeys.lists() })
+      queryClient.invalidateQueries({ queryKey: mediaKeys.all })
+    },
+  })
+}
+
+export function useRestoreMedia() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => restoreMedia(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: mediaKeys.all })
+    },
+  })
+}
+
+export function usePermanentDeleteMedia() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => permanentDeleteMedia(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: mediaKeys.all })
     },
   })
 }

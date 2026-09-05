@@ -1,5 +1,5 @@
-import { useState, useEffect, useRef } from 'react'
-import { fetchMediaBlob } from '@/api/client'
+import { useState } from 'react'
+import { getMediaURL } from '@/api/client'
 import { cn } from '@/lib/utils'
 
 interface AuthImageProps {
@@ -11,8 +11,18 @@ interface AuthImageProps {
   placeholder?: React.ReactNode
 }
 
-/** Fetches media with the auth token and renders it as an <img>.
- *  Cleans up the object URL on unmount to prevent memory leaks. */
+/**
+ * Renders an authenticated media image using a direct streaming URL with the
+ * auth token as a query parameter. This avoids the previous pattern of
+ * downloading the full file into JavaScript memory as a Blob object URL, which
+ * caused:
+ *  - Full video files being buffered in RAM when falling back to "original"
+ *  - HTTP connection pool exhaustion (6 connections limit) blocking all other requests
+ *  - Slow gallery scrolling due to unthrottled parallel fetches
+ *
+ * The browser handles lazy loading, caching, request cancellation, and streaming
+ * natively with <img loading="lazy">.
+ */
 export function AuthImage({
   mediaId,
   type,
@@ -21,42 +31,10 @@ export function AuthImage({
   onLoad,
   placeholder,
 }: AuthImageProps) {
-  const [src, setSrc] = useState<string | null>(null)
   const [loaded, setLoaded] = useState(false)
   const [error, setError] = useState(false)
-  const urlRef = useRef<string | null>(null)
 
-  useEffect(() => {
-    let cancelled = false
-    setSrc(null)
-    setLoaded(false)
-    setError(false)
-
-    fetchMediaBlob(mediaId, type)
-      .then((objectUrl) => {
-        if (cancelled) {
-          URL.revokeObjectURL(objectUrl)
-          return
-        }
-        // Revoke old URL
-        if (urlRef.current) URL.revokeObjectURL(urlRef.current)
-        urlRef.current = objectUrl
-        setSrc(objectUrl)
-      })
-      .catch(() => {
-        if (!cancelled) setError(true)
-      })
-
-    return () => {
-      cancelled = true
-    }
-  }, [mediaId, type])
-
-  useEffect(() => {
-    return () => {
-      if (urlRef.current) URL.revokeObjectURL(urlRef.current)
-    }
-  }, [])
+  const src = getMediaURL(mediaId, type)
 
   if (error) {
     return (
@@ -68,27 +46,27 @@ export function AuthImage({
 
   return (
     <>
-      {(!src || !loaded) && (
+      {!loaded && (
         <div className={cn('skeleton', className)}>
           {placeholder}
         </div>
       )}
-      {src && (
-        <img
-          src={src}
-          alt={alt}
-          className={cn(
-            'transition-opacity duration-[220ms] ease-out',
-            loaded ? 'opacity-100' : 'opacity-0 absolute',
-            className,
-          )}
-          onLoad={() => {
-            setLoaded(true)
-            onLoad?.()
-          }}
-        />
-      )}
+      <img
+        src={src}
+        alt={alt}
+        className={cn(
+          'transition-opacity duration-[220ms] ease-out',
+          loaded ? 'opacity-100' : 'opacity-0 absolute',
+          className,
+        )}
+        loading="lazy"
+        decoding="async"
+        onLoad={() => {
+          setLoaded(true)
+          onLoad?.()
+        }}
+        onError={() => setError(true)}
+      />
     </>
   )
 }
-

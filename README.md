@@ -2,13 +2,46 @@
 
 Self-hosted photo and video backup server designed for private Tailscale networks.
 
-## Run
+### Run as Background Service (Single Command)
 
-Install Go 1.24 or newer, then run:
+To build and run PhotoVault permanently in the background (starts on login, auto-restarts on crash, serves both API + React Web UI on port 8080):
 
 ```sh
-go mod tidy
+make install
+# or
+./scripts/install.sh
+```
+
+Service management:
+- **Start**: `make start` or `launchctl start com.photovault.server`
+- **Stop**: `make stop` or `launchctl stop com.photovault.server`
+- **Logs**: `make logs` or `tail -f ~/Library/Logs/PhotoVault/photovault.log`
+- **Uninstall**: `make uninstall` or `./scripts/install.sh --uninstall`
+
+### Development Mode
+
+Run backend and frontend independently during development:
+
+```sh
+# Backend
 go run ./cmd/photovault
+
+# Frontend (in another terminal)
+cd mnemos-web && pnpm dev
+```
+
+The server automatically loads environment variables from a `.env` file if present in the workspace root. You can configure your vault storage path in `.env`:
+
+```env
+PHOTOVAULT_STORAGE_PATH="/Volumes/ExternalDrive/PhotoVaultStorage"
+```
+
+Or configure and persist it directly from the Web UI (**Settings** → **Vault Storage Location**).
+
+You can also override the storage location dynamically with the `-storage` flag:
+
+```sh
+go run ./cmd/photovault -storage /Volumes/ExternalDrive/PhotoVaultStorage
 ```
 
 Run the automated tests with:
@@ -53,7 +86,22 @@ curl -i http://127.0.0.1:8080/health
 Expected body:
 
 ```json
-{"status":"ok"}
+{
+  "version": "1.0.0",
+  "build_commit": "abcdef1",
+  "uptime_seconds": 3600,
+  "database": "ok",
+  "blob_storage": "ok",
+  "workers": "ok",
+  "storage_path": "/var/lib/photovault/blobs",
+  "total_media": 1420,
+  "total_photos": 1280,
+  "total_videos": 140,
+  "vault_bytes": 4831838208,
+  "total_devices": 3,
+  "disk_free_bytes": 107374182400,
+  "disk_total_bytes": 500107862016
+}
 ```
 
 ## Device registration
@@ -63,7 +111,7 @@ Register each client once. The returned `auth_token` is shown only in this respo
 ```sh
 curl -i -X POST http://127.0.0.1:8080/devices/register \
   -H 'Content-Type: application/json' \
-  --data '{"name":"Karthik’s iPhone","device_type":"ios"}'
+  --data '{"name":"My iPhone","device_type":"ios"}'
 ```
 
 Expected response shape:
@@ -83,6 +131,22 @@ Authorization: Bearer <auth_token>
 
 Only the SHA-256 hash of the token is stored in SQLite. Supported device types are `ios`, `android`, `mac`, and `web`.
 
+### List registered devices
+
+```sh
+curl -i http://127.0.0.1:8080/devices \
+  -H "Authorization: Bearer <auth_token>"
+```
+
+### Unregister & remove device
+
+Removes an authorized client device. Any media previously uploaded by the device is safely preserved and reassigned to the server host. The primary host admin device cannot be deleted.
+
+```sh
+curl -i -X DELETE http://127.0.0.1:8080/devices/<device_id> \
+  -H "Authorization: Bearer <auth_token>"
+```
+
 ## Download original media
 
 Download an original photo or video by its `file_id`. Authentication, conditional requests, and HTTP byte ranges are supported, so video clients can seek without downloading the full blob.
@@ -91,6 +155,14 @@ Download an original photo or video by its `file_id`. Authentication, conditiona
 curl -i http://127.0.0.1:8080/media/<file_id>/original \
   -H "Authorization: Bearer <auth_token>" \
   -o original-media
+```
+
+Add `?download=1` to force a file download with `Content-Disposition: attachment; filename="<original_filename>"`:
+
+```sh
+curl -i 'http://127.0.0.1:8080/media/<file_id>/original?download=1' \
+  -H "Authorization: Bearer <auth_token>" \
+  -O -J
 ```
 
 Resume or request a segment of a large video:
@@ -128,7 +200,9 @@ curl -i -X DELETE http://127.0.0.1:8080/media/<file_id> \
   -H "Authorization: Bearer <auth_token>"
 ```
 
-Filters include `query`, `mime_type`, `from`, `to`, `favorite`, `has_thumbnail`, and `has_preview`; pagination uses `limit` and `offset`. Supported sort fields are `filename`, `taken_at`, `mime_type`, and `uploaded_at`. Soft-deleted media remains stored but is excluded from searches and metadata responses.
+Filters include `query`, `mime_type`, `from`, `to`, `favorite`, `has_thumbnail`, `has_preview`, `device_id` (filter media uploaded by a specific client), and `exclude_device_id` (filter media uploaded by other clients); pagination uses `limit` and `offset`. Supported sort fields are `filename`, `taken_at`, `mime_type`, and `uploaded_at`. Soft-deleted media remains stored but is excluded from searches and metadata responses.
+
+Media search responses include uploader identity (`uploaded_by_device_id`, `uploaded_by_device_name`, `uploaded_by_device_type`) so clients can distinguish local vs remote files.
 
 ## Upload
 
@@ -142,9 +216,11 @@ curl -i -X POST http://127.0.0.1:8080/upload \
 
 The server streams data to a temporary file, calculates SHA-256 during transfer, detects MIME type from bytes, and atomically stores unique blobs under `storage/blobs/by-device/`.
 
-## Derived media processing
+## Derived media processing & Hardware Acceleration
 
-Successful uploads enqueue durable background work; upload responses never wait for thumbnail or preview generation. The worker creates JPEG thumbnails under `storage/thumbnails/`. When `ffmpeg` is installed, supported videos also receive a JPEG frame thumbnail and an H.264/AAC 480p MP4 preview under `storage/previews/`. Unsupported formats, unavailable decoders, and installations without `ffmpeg` are skipped without affecting the original upload.
+Successful uploads enqueue durable background jobs; upload responses never wait for thumbnail or preview generation. The background processor leverages Apple Silicon hardware engines when running on macOS:
+- **Photos (720px HD)**: Uses macOS `sips` (CoreImage/Metal) to generate high-definition 720px JPEG thumbnails with near-zero CPU usage, falling back to pure Go Catmull-Rom scaling when `sips` is unavailable.
+- **Videos (1080p MP4 & Poster)**: Uses `ffmpeg` with Apple VideoToolbox hardware acceleration (`h264_videotoolbox` / `hevc_videotoolbox`) for ultra-fast 1080p CRF 20 preview generation and instant poster extraction.
 
 ```text
 POST /upload
@@ -152,14 +228,14 @@ POST /upload
     ▼
 SQLite file metadata + media_processing_jobs
     ▼
-background worker ──► thumbnail JPEG ──► storage/thumbnails
+background worker ──► macOS sips / CoreImage ──► 720px HD thumbnail
     │
-    └──► ffmpeg video preview ──► storage/previews
-                                      │
-GET /media/{id}/thumbnail or /preview ◄┘
+    └──► VideoToolbox hardware ffmpeg ──► 1080p MP4 preview
+                                              │
+GET /media/{id}/thumbnail or /preview ◄───────┘
 ```
 
-Derived endpoints require bearer authentication and return `404 media_not_ready` until the worker has committed the generated file metadata.
+Derived endpoints require bearer authentication, support HTTP byte-ranges, and include immutable caching headers (`Cache-Control: public, max-age=31536000, immutable`):
 
 ```sh
 curl -i http://127.0.0.1:8080/media/<file_id>/thumbnail \
@@ -341,3 +417,120 @@ curl -s 'http://127.0.0.1:8080/sync/diff' \
 ```
 
 After ack, the second diff returns an empty `files` array for that content.
+
+## Tailscale Network & Auth Bootstrap
+
+PhotoVault restricts API access to private networks (Localhost, private LAN, and Tailscale CGNAT `100.64.0.0/10`).
+
+When accessing the web app from the host machine (`127.0.0.1` / `localhost`), the frontend calls `GET /auth/bootstrap`:
+
+```sh
+curl -i http://127.0.0.1:8080/auth/bootstrap
+```
+
+Response for localhost:
+```json
+{
+  "is_admin": true,
+  "device_id": "<admin_uuid>",
+  "auth_token": "<admin_token>",
+  "device_name": "Server Host (Admin)",
+  "device_type": "mac",
+  "network_allowed": true
+}
+```
+
+Response for remote Tailscale devices:
+```json
+{
+  "is_admin": false,
+  "network_allowed": true
+}
+```
+
+Remote client devices register effortlessly via `POST /devices/register` with their device name and type (`ios`, `android`, `mac`, `web`).
+
+## Storage Folder Ingestion & Scanner
+
+To ingest existing photos or videos located in a server folder (or the server's storage directory) that have no database IDs:
+
+```sh
+curl -i -X POST http://127.0.0.1:8080/storage/scan \
+  -H "Authorization: Bearer <auth_token>" \
+  -H 'Content-Type: application/json' \
+  --data '{"path":"/Volumes/Photos/Archive"}'
+```
+
+Leave `path` empty or omitted to scan the server's configured storage directory. The scanner calculates SHA-256 hashes, deduplicates against existing records, inserts newly found files into SQLite, and enqueues thumbnail/preview/indexing workers:
+
+```json
+{
+  "scanned": 142,
+  "imported": 138,
+  "already_indexed": 4,
+  "errors": 0
+}
+```
+
+## Native macOS Finder Folder Picker
+
+To open the native macOS Finder directory picker on the server host to visually choose a folder:
+
+```sh
+curl -i -X POST http://127.0.0.1:8080/storage/pick-folder \
+  -H "Authorization: Bearer <auth_token>"
+```
+
+Success response:
+```json
+{
+  "cancelled": false,
+  "path": "/Users/username/Pictures/VacationPhotos"
+}
+```
+
+If the user cancels the dialog:
+```json
+{
+  "cancelled": true
+}
+```
+
+## Vault Storage Configuration (.env Persistence)
+
+### Get Storage Config
+
+```sh
+curl -i http://127.0.0.1:8080/storage/config \
+  -H "Authorization: Bearer <auth_token>"
+```
+
+Response:
+```json
+{
+  "storage_path": "/Volumes/ExternalDrive/PhotoVaultStorage",
+  "env_path": "/path/to/photoVault/.env",
+  "env_exists": true
+}
+```
+
+### Update Storage Config (.env)
+
+```sh
+curl -i -X POST http://127.0.0.1:8080/storage/config \
+  -H "Authorization: Bearer <auth_token>" \
+  -H 'Content-Type: application/json' \
+  --data '{"storage_path":"/Volumes/MyPassport/PhotoVault"}'
+```
+
+Response:
+```json
+{
+  "status": "saved",
+  "storage_path": "/Volumes/MyPassport/PhotoVault",
+  "requires_restart": true,
+  "message": "Vault storage path saved to .env. Restart PhotoVault to load the new directory."
+}
+```
+
+

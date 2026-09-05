@@ -28,6 +28,9 @@ func Middleware(logger *slog.Logger, authenticator Authenticator) func(http.Hand
 			userAgent := request.UserAgent()
 			token, ok := bearerToken(request.Header.Get("Authorization"))
 			if !ok {
+				token, ok = queryToken(request)
+			}
+			if !ok {
 				logAuthentication(logger, "", "", remoteIP, userAgent, false)
 				writeUnauthorized(writer)
 				return
@@ -73,6 +76,18 @@ func bearerToken(value string) (string, bool) {
 		return "", false
 	}
 	return parts[1], true
+}
+
+func queryToken(request *http.Request) (string, bool) {
+	token := request.URL.Query().Get("token")
+	if token == "" {
+		token = request.URL.Query().Get("_t")
+	}
+	token = strings.TrimSpace(token)
+	if token == "" {
+		return "", false
+	}
+	return token, true
 }
 
 func writeUnauthorized(writer http.ResponseWriter) {

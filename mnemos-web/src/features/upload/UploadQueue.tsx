@@ -1,9 +1,12 @@
 import { useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'motion/react'
 import { X, CheckCircle2, AlertCircle, RefreshCw, Upload } from 'lucide-react'
+import { useQueryClient, type QueryClient } from '@tanstack/react-query'
 import { useUploadStore } from '@/stores/upload'
-import { checkFileExists, uploadFile } from '@/api/client'
-import { hashFile, formatBytes } from '@/lib/utils'
+import { checkFileExists, uploadFile, ackSync } from '@/api/client'
+import { mediaKeys } from '@/hooks/useMedia'
+import { hashFileInWorker } from '@/lib/hashWorker'
+import { formatBytes } from '@/lib/utils'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/Button'
 import type { UploadItem } from '@/types'
@@ -15,6 +18,7 @@ const MAX_CONCURRENT = 3
 export function useUploadEngine() {
   const { queue, updateItem } = useUploadStore()
   const processingRef = useRef<Set<string>>(new Set())
+  const queryClient = useQueryClient()
 
   useEffect(() => {
     const pending = queue.filter(
@@ -24,35 +28,56 @@ export function useUploadEngine() {
 
     pending.slice(0, slots).forEach((item) => {
       processingRef.current.add(item.id)
-      processItem(item, updateItem).finally(() => processingRef.current.delete(item.id))
+      processItem(item, updateItem, queryClient).finally(() =>
+        processingRef.current.delete(item.id),
+      )
     })
-  })
+  }, [queue, updateItem, queryClient])
 }
 
 async function processItem(
   item: UploadItem,
   updateItem: (id: string, patch: Partial<UploadItem>) => void,
+  queryClient: QueryClient,
 ) {
   try {
-    // 1. Hash
-    updateItem(item.id, { status: 'hashing' })
-    const hash = await hashFile(item.file)
-    updateItem(item.id, { hash })
-
-    // 2. Check existence (dedup)
-    updateItem(item.id, { status: 'checking' })
-    const existence = await checkFileExists(hash)
-    if (existence.exists) {
-      updateItem(item.id, { status: 'duplicate', fileId: existence.file_id, progress: 100 })
-      return
+    // 1. Hash with off-main-thread Web Worker (with fallback)
+    let hash = ''
+    try {
+      updateItem(item.id, { status: 'hashing' })
+      hash = await hashFileInWorker(item.file)
+      updateItem(item.id, { hash })
+    } catch (hashErr) {
+      console.warn('Client-side hash skipped; relying on server stream-hashing:', hashErr)
     }
 
-    // 3. Upload
+    // 2. Check existence (dedup) if hash is available
+    if (hash) {
+      updateItem(item.id, { status: 'checking' })
+      try {
+        const existence = await checkFileExists(hash)
+        if (existence.exists) {
+          try {
+            await ackSync([existence.file_id])
+          } catch {
+            // non-fatal if sync ack fails
+          }
+          updateItem(item.id, { status: 'duplicate', fileId: existence.file_id, progress: 100 })
+          queryClient.invalidateQueries({ queryKey: mediaKeys.all })
+          return
+        }
+      } catch (checkErr) {
+        console.warn('Dedup pre-check skipped; server will handle deduplication:', checkErr)
+      }
+    }
+
+    // 3. Upload (server streams to disk, computes SHA-256, and deduplicates)
     updateItem(item.id, { status: 'uploading', progress: 0 })
     const result = await uploadFile(item.file, (progress) => {
       updateItem(item.id, { progress })
     })
     updateItem(item.id, { status: 'complete', fileId: result.file_id, progress: 100 })
+    queryClient.invalidateQueries({ queryKey: mediaKeys.all })
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Upload failed'
     updateItem(item.id, { status: 'error', error: message })
@@ -225,9 +250,6 @@ export function UploadQueue({ onClose }: UploadQueueProps) {
   const completedCount = queue.filter(
     (i) => i.status === 'complete' || i.status === 'duplicate',
   ).length
-
-  // Start the engine
-  useUploadEngine()
 
   return (
     <div className="flex flex-col h-full bg-[--color-surface-base]">

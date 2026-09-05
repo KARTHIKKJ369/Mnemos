@@ -13,11 +13,24 @@ type Media struct {
 	CameraMake, CameraModel                                 *string
 	GPSLat, GPSLon                                          *float64
 	Favorite, Deleted, ThumbnailAvailable, PreviewAvailable bool
+	UploadedByDeviceID                                      string
+	UploadedByDeviceName                                    string
+	UploadedByDeviceType                                    string
 }
+type ExtractedMetadata struct {
+	Width, Height           *int
+	DurationMS              *int64
+	TakenAt                 *time.Time
+	CameraMake, CameraModel *string
+	GPSLat, GPSLon          *float64
+}
+
 type Search struct {
-	Query, MIMEType                    string
-	From, To                           *time.Time
-	Favorite, HasThumbnail, HasPreview *bool
-	Limit, Offset                      int
-	Sort, Order                        string
+	Query, MIMEType                             string
+	From, To                                    *time.Time
+	Favorite, Deleted, HasThumbnail, HasPreview *bool
+	Limit, Offset                               int
+	Sort, Order                                 string
+	DeviceID                                    string
+	ExcludeDeviceID                             string
 }

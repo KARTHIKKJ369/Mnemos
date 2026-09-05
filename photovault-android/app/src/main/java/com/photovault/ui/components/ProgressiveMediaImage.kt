@@ -1,10 +1,9 @@
 package com.photovault.ui.components
 
-import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.spring
-import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.calculatePan
+import androidx.compose.foundation.gestures.calculateZoom
 import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
@@ -63,9 +62,9 @@ fun ProgressiveMediaImage(
                     Modifier
                         .pointerInput(Unit) {
                             detectTapGestures(
-                                onDoubleTap = { tapOffset ->
+                                onDoubleTap = {
                                     scope.launch {
-                                        if (scale > 1f) {
+                                        if (scale > 1.05f) {
                                             scale = 1f
                                             offset = Offset.Zero
                                         } else {
@@ -78,14 +77,27 @@ fun ProgressiveMediaImage(
                             )
                         }
                         .pointerInput(Unit) {
-                            detectTransformGestures { _, pan, zoom, _ ->
-                                val newScale = (scale * zoom).coerceIn(1f, 6f)
-                                scale = newScale
-                                if (newScale > 1f) {
-                                    offset += pan
-                                } else {
-                                    offset = Offset.Zero
-                                }
+                            awaitEachGesture {
+                                do {
+                                    val event = awaitPointerEvent()
+                                    val canceled = event.changes.any { it.isConsumed }
+                                    if (!canceled) {
+                                        val zoomChange = event.calculateZoom()
+                                        val panChange = event.calculatePan()
+                                        val pointerCount = event.changes.size
+
+                                        if (pointerCount > 1 || scale > 1.05f) {
+                                            val newScale = (scale * zoomChange).coerceIn(1f, 6f)
+                                            scale = newScale
+                                            if (newScale > 1.05f) {
+                                                offset += panChange
+                                                event.changes.forEach { it.consume() }
+                                            } else {
+                                                offset = Offset.Zero
+                                            }
+                                        }
+                                    }
+                                } while (event.changes.any { it.pressed })
                             }
                         }
                 } else Modifier

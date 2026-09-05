@@ -4,15 +4,48 @@
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
-    <!-- Amber Aperture Ring (#D4A017) with 2.2dp stroke, radius 22dp centered at (54,54) -->
+    <!-- Vault Corner Reticle Brackets -->
     <path
-        android:strokeWidth="2.2"
-        android:strokeColor="#D4A017"
+        android:strokeWidth="1.8"
+        android:strokeColor="#55555C"
         android:strokeLineCap="round"
         android:strokeLineJoin="round"
-        android:pathData="M 54,32 A 22,22 0 1,0 54,76 A 22,22 0 1,0 54,32 Z" />
-    <!-- Solid Amber Memory-Node Center Dot, radius 4.5dp centered at (54,54) -->
+        android:pathData="M 32,38 L 32,32 L 38,32" />
     <path
-        android:fillColor="#D4A017"
-        android:pathData="M 54,49.5 A 4.5,4.5 0 1,0 54,58.5 A 4.5,4.5 0 1,0 54,49.5 Z" />
+        android:strokeWidth="1.8"
+        android:strokeColor="#55555C"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:pathData="M 70,32 L 76,32 L 76,38" />
+    <path
+        android:strokeWidth="1.8"
+        android:strokeColor="#55555C"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:pathData="M 32,70 L 32,76 L 38,76" />
+    <path
+        android:strokeWidth="1.8"
+        android:strokeColor="#55555C"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:pathData="M 70,76 L 76,76 L 76,70" />
+
+    <!-- Pure White Optical Aperture Ring, radius 21dp centered at (54,54) -->
+    <path
+        android:strokeWidth="3.2"
+        android:strokeColor="#FFFFFF"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:pathData="M 54,33 A 21,21 0 1,0 54,75 A 21,21 0 1,0 54,33 Z" />
+
+    <!-- Signal Red (#FF2A2A) Vault Iris Core, radius 7.5dp centered at (54,54) -->
+    <path
+        android:fillColor="#FF2A2A"
+        android:pathData="M 54,46.5 A 7.5,7.5 0 1,0 54,61.5 A 7.5,7.5 0 1,0 54,46.5 Z" />
+
+    <!-- Specular Lens Glint on Iris Core -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:fillAlpha="0.75"
+        android:pathData="M 51.5,49 A 2.2,2.2 0 1,0 51.5,53.4 A 2.2,2.2 0 1,0 51.5,49 Z" />
 </vector>

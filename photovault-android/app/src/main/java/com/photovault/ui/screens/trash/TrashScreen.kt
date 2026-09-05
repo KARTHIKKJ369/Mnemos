@@ -74,7 +74,7 @@ import kotlinx.coroutines.launch
 @Composable
 fun TrashScreen(
     onNavigateBack: () -> Unit,
-    onMediaSelected: (fileId: String) -> Unit
+    onMediaSelected: (fileId: String, currentMediaList: List<MediaItem>) -> Unit
 ) {
     BackHandler(enabled = true) {
         onNavigateBack()
@@ -279,7 +279,8 @@ fun TrashScreen(
                                     HapticHelper.performClick(view)
                                     selectedFileIds = if (isSelected) selectedFileIds - item.fileId else selectedFileIds + item.fileId
                                 } else {
-                                    onMediaSelected(item.fileId)
+                                    HapticHelper.performClick(view)
+                                    onMediaSelected(item.fileId, trashList)
                                 }
                             }
                         )

@@ -37,7 +37,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
-import com.photovault.ui.components.FrameBottomStatusBar
+import com.photovault.data.model.MediaItem
 import com.photovault.ui.components.HapticHelper
 import com.photovault.ui.components.RedDotIndicator
 import com.photovault.ui.screens.backup.BackupScreen
@@ -59,8 +59,7 @@ import com.photovault.ui.theme.SpaceGroteskFontFamily
 enum class FrameNavTab(val number: String, val title: String) {
     VAULT("01", "VAULT"),
     NODES("02", "NODES"),
-    SYNC("03", "SYNC"),
-    SYSTEM("04", "SYSTEM")
+    SYSTEM("03", "SYSTEM")
 }
 
 @Composable
@@ -70,6 +69,7 @@ fun MainNavHost(
     val view = LocalView.current
     var selectedTab by remember { mutableStateOf(FrameNavTab.VAULT) }
     var activeViewerFileId by remember { mutableStateOf<String?>(null) }
+    var activeViewerMediaList by remember { mutableStateOf<List<MediaItem>>(emptyList()) }
     var galleryFilterDeviceId by remember { mutableStateOf<String?>(null) }
     var showTrashScreen by remember { mutableStateOf(false) }
 
@@ -83,11 +83,11 @@ fun MainNavHost(
             .fillMaxSize()
             .background(FrameBlack)
     ) {
-        // Main Content Area (padding bottom 68dp for FRAME bottom navigation + live clock)
+        // Main Content Area (padding bottom 48dp for FRAME bottom navigation tabs)
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(bottom = 68.dp)
+                .padding(bottom = 48.dp)
         ) {
             AnimatedContent(
                 targetState = selectedTab,
@@ -100,17 +100,21 @@ fun MainNavHost(
                 when (tab) {
                     FrameNavTab.VAULT -> GalleryScreen(
                         initialDeviceId = galleryFilterDeviceId,
-                        onMediaSelected = { fileId ->
+                        onMediaSelected = { fileId, list ->
                             activeViewerFileId = fileId
+                            activeViewerMediaList = list
                         }
                     )
                     FrameNavTab.NODES -> DevicesScreen(
                         onNavigateToGalleryWithDevice = { deviceId, _ ->
                             galleryFilterDeviceId = deviceId
                             selectedTab = FrameNavTab.VAULT
+                        },
+                        onMediaSelected = { fileId, list ->
+                            activeViewerFileId = fileId
+                            activeViewerMediaList = list
                         }
                     )
-                    FrameNavTab.SYNC -> BackupScreen()
                     FrameNavTab.SYSTEM -> SettingsScreen(
                         onLogout = onLogout,
                         onOpenTrash = { showTrashScreen = true },
@@ -181,9 +185,6 @@ fun MainNavHost(
                     }
                 }
             }
-
-            // Bottom Live Time & Server Status Ticker
-            FrameBottomStatusBar(statusText = "TAILSCALE SECURE")
         }
 
         // Trash Screen Overlay
@@ -192,8 +193,9 @@ fun MainNavHost(
                 onNavigateBack = {
                     showTrashScreen = false
                 },
-                onMediaSelected = { fileId ->
+                onMediaSelected = { fileId, list ->
                     activeViewerFileId = fileId
+                    activeViewerMediaList = list
                 }
             )
         }
@@ -202,8 +204,10 @@ fun MainNavHost(
         activeViewerFileId?.let { fileId ->
             MediaViewerScreen(
                 initialFileId = fileId,
+                initialMediaList = activeViewerMediaList,
                 onClose = {
                     activeViewerFileId = null
+                    activeViewerMediaList = emptyList()
                 }
             )
         }

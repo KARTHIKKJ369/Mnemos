@@ -25,6 +25,11 @@ class PreferenceStore(context: Context) {
     private val _autoBackup = MutableStateFlow(prefs.getBoolean(KEY_AUTO_BACKUP, false))
     val autoBackup: StateFlow<Boolean> = _autoBackup.asStateFlow()
 
+    private val _downloadedFileIds = MutableStateFlow<Set<String>>(
+        prefs.getStringSet(KEY_DOWNLOADED_FILE_IDS, emptySet()) ?: emptySet()
+    )
+    val downloadedFileIds: StateFlow<Set<String>> = _downloadedFileIds.asStateFlow()
+
     fun saveServerConfig(url: String, token: String, deviceId: String) {
         val cleanUrl = url.trim().trimEnd('/')
         prefs.edit()
@@ -48,11 +53,28 @@ class PreferenceStore(context: Context) {
         _autoBackup.value = enabled
     }
 
+    fun markFileDownloaded(fileId: String) {
+        val updated = _downloadedFileIds.value + fileId
+        prefs.edit().putStringSet(KEY_DOWNLOADED_FILE_IDS, updated).apply()
+        _downloadedFileIds.value = updated
+    }
+
+    fun markFilesDownloaded(fileIds: Collection<String>) {
+        val updated = _downloadedFileIds.value + fileIds
+        prefs.edit().putStringSet(KEY_DOWNLOADED_FILE_IDS, updated).apply()
+        _downloadedFileIds.value = updated
+    }
+
+    fun isFileDownloaded(fileId: String): Boolean {
+        return _downloadedFileIds.value.contains(fileId)
+    }
+
     fun clear() {
         prefs.edit().clear().apply()
         _serverUrl.value = ""
         _authToken.value = ""
         _deviceId.value = ""
+        _downloadedFileIds.value = emptySet()
     }
 
     val isConfigured: Boolean
@@ -64,5 +86,6 @@ class PreferenceStore(context: Context) {
         private const val KEY_DEVICE_ID = "device_id"
         private const val KEY_GRID_COLUMNS = "grid_columns"
         private const val KEY_AUTO_BACKUP = "auto_backup"
+        private const val KEY_DOWNLOADED_FILE_IDS = "downloaded_file_ids"
     }
 }

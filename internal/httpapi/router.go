@@ -9,6 +9,7 @@ import (
 	"log/slog"
 	"net"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -144,6 +145,10 @@ func registerDevice(registrar DeviceRegistrar, limiter RegistrationLimiter) http
 		if err := ensureSingleJSONValue(decoder); err != nil {
 			writeError(writer, http.StatusBadRequest, "invalid_request", "request body must contain one JSON object")
 			return
+		}
+
+		if strings.TrimSpace(input.DeviceType) == "" {
+			input.DeviceType = "android"
 		}
 
 		registration, err := registrar.Register(request.Context(), input.Name, input.DeviceType)

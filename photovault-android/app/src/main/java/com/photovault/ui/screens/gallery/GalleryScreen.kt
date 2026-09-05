@@ -105,6 +105,7 @@ import com.photovault.ui.theme.FrameSurface
 import com.photovault.ui.theme.FrameWhite
 import com.photovault.ui.theme.MnemosType
 import com.photovault.ui.theme.SignalRed
+import com.photovault.ui.theme.SignalRedSubtle
 import com.photovault.ui.theme.SpaceGroteskFontFamily
 import kotlinx.coroutines.launch
 import java.io.File
@@ -618,18 +619,18 @@ fun GalleryScreen(
                             PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageAndVideo)
                         )
                     },
-                    containerColor = FrameWhite,
-                    contentColor = FrameBlack,
+                    containerColor = SignalRed,
+                    contentColor = FrameWhite,
                     shape = CircleShape,
                     modifier = Modifier
-                        .size(52.dp)
-                        .border(1.dp, FrameBorderLight, CircleShape)
+                        .size(54.dp)
+                        .border(1.dp, SignalRedSubtle, CircleShape)
                 ) {
                     Icon(
                         imageVector = Icons.Default.Add,
                         contentDescription = "Upload Media",
-                        tint = FrameBlack,
-                        modifier = Modifier.size(24.dp)
+                        tint = FrameWhite,
+                        modifier = Modifier.size(26.dp)
                     )
                 }
             }

@@ -533,4 +533,36 @@ Response:
 }
 ```
 
+## Android Mobile App (Native Kotlin & Jetpack Compose)
+
+PhotoVault includes a pure native Android companion application built in **Kotlin** with **Jetpack Compose**, **AndroidX Media3 (ExoPlayer)**, and **Coil**.
+
+### Features
+- **Progressive Streaming**: 720px thumbnail loaded immediately from cache, followed by seamless background cross-fade into full-resolution HD.
+- **Hardware Video Player**: Media3 ExoPlayer with seekable byte ranges and auto-hiding playback controls.
+- **Multi-Tier Caching**: 2GB persistent LRU disk cache + memory cache for instant offline browsing.
+- **Native Haptics**: Tactile feedback on grid density pinch, photo taps, and upload completion.
+- **Camera Roll Auto-Backup**: Android WorkManager background sync scanning device camera roll.
+
+### Build APK
+```sh
+# Build debug APK
+make apk
+# or
+cd photovault-android && ./gradlew assembleDebug
+```
+
+The APK will be generated at:
+```
+photovault-android/app/build/outputs/apk/debug/app-debug.apk
+```
+
+### Install APK to Connected Device
+```sh
+make install-apk
+# or
+adb install -r photovault-android/app/build/outputs/apk/debug/app-debug.apk
+```
+
+
 

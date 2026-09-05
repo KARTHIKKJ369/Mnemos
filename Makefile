@@ -49,6 +49,17 @@ logs:
 logs-err:
 	tail -f ~/Library/Logs/PhotoVault/photovault-error.log
 
+# ── Android App ───────────────────────────────────────────────────────────────
+
+## Build Android native APK (Kotlin + Jetpack Compose)
+apk:
+	cd photovault-android && ./gradlew assembleDebug
+	@echo "✓ APK built → photovault-android/app/build/outputs/apk/debug/app-debug.apk"
+
+## Install APK to connected Android device via adb
+install-apk:
+	adb install -r photovault-android/app/build/outputs/apk/debug/app-debug.apk
+
 # ── Testing ───────────────────────────────────────────────────────────────────
 
 ## Run Go tests with race detector

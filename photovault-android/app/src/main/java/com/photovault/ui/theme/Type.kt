@@ -16,8 +16,16 @@ val provider = GoogleFont.Provider(
     certificates = R.array.com_google_android_gms_fonts_certs
 )
 
+val SpaceGroteskFont = GoogleFont("Space Grotesk")
 val InterFont = GoogleFont("Inter")
 val RobotoMonoFont = GoogleFont("Roboto Mono")
+
+val SpaceGroteskFontFamily = FontFamily(
+    Font(googleFont = SpaceGroteskFont, fontProvider = provider, weight = FontWeight.Normal),
+    Font(googleFont = SpaceGroteskFont, fontProvider = provider, weight = FontWeight.Medium),
+    Font(googleFont = SpaceGroteskFont, fontProvider = provider, weight = FontWeight.SemiBold),
+    Font(googleFont = SpaceGroteskFont, fontProvider = provider, weight = FontWeight.Bold)
+)
 
 val InterFontFamily = FontFamily(
     Font(googleFont = InterFont, fontProvider = provider, weight = FontWeight.Normal),
@@ -33,42 +41,48 @@ val RobotoMonoFontFamily = FontFamily(
 )
 
 // Backwards-compatible aliases
-val PoppinsFontFamily = InterFontFamily
-val SpaceGroteskFontFamily = InterFontFamily
+val PoppinsFontFamily = SpaceGroteskFontFamily
 
 /**
- * Strict 7-Step Typographic Scale (11, 13, 15, 17, 22, 28, 34sp)
+ * FRAME // OS Typographic Scale
  */
 object MnemosType {
-    // 34sp Display
+    // 32sp Hero Display (e.g. 135H 56M // 05 TITLES)
     val Display34 = TextStyle(
-        fontFamily = InterFontFamily,
-        fontWeight = FontWeight.SemiBold,
-        fontSize = 34.sp,
+        fontFamily = SpaceGroteskFontFamily,
+        fontWeight = FontWeight.Bold,
+        fontSize = 30.sp,
         letterSpacing = (-0.02).em
     )
 
-    // 28sp Headline
+    // 24sp Hero Headline
     val Headline28 = TextStyle(
-        fontFamily = InterFontFamily,
-        fontWeight = FontWeight.Medium,
-        fontSize = 28.sp,
+        fontFamily = SpaceGroteskFontFamily,
+        fontWeight = FontWeight.Bold,
+        fontSize = 24.sp,
+        letterSpacing = (-0.02).em
+    )
+
+    // 20sp Page Title
+    val Title22 = TextStyle(
+        fontFamily = SpaceGroteskFontFamily,
+        fontWeight = FontWeight.SemiBold,
+        fontSize = 20.sp,
         letterSpacing = (-0.01).em
     )
 
-    // 22sp Title
-    val Title22 = TextStyle(
-        fontFamily = InterFontFamily,
-        fontWeight = FontWeight.Medium,
-        fontSize = 22.sp,
-        letterSpacing = 0.em
+    val PageTitle20 = TextStyle(
+        fontFamily = SpaceGroteskFontFamily,
+        fontWeight = FontWeight.Bold,
+        fontSize = 20.sp,
+        letterSpacing = (-0.01).em
     )
 
-    // 17sp Body Large
-    val BodyLarge17 = TextStyle(
-        fontFamily = InterFontFamily,
-        fontWeight = FontWeight.Normal,
-        fontSize = 17.sp,
+    // 15sp Card Title
+    val CardTitle15 = TextStyle(
+        fontFamily = SpaceGroteskFontFamily,
+        fontWeight = FontWeight.Medium,
+        fontSize = 15.sp,
         letterSpacing = 0.em
     )
 
@@ -80,7 +94,21 @@ object MnemosType {
         letterSpacing = 0.em
     )
 
-    // 13sp Body Small / Secondary
+    val BodyLarge17 = TextStyle(
+        fontFamily = InterFontFamily,
+        fontWeight = FontWeight.Normal,
+        fontSize = 17.sp,
+        letterSpacing = 0.em
+    )
+
+    // 13sp Body Secondary
+    val BodySecondary13 = TextStyle(
+        fontFamily = InterFontFamily,
+        fontWeight = FontWeight.Normal,
+        fontSize = 13.sp,
+        letterSpacing = 0.01.em
+    )
+
     val BodySmall13 = TextStyle(
         fontFamily = InterFontFamily,
         fontWeight = FontWeight.Normal,
@@ -90,56 +118,32 @@ object MnemosType {
 
     // 11sp Label (All-caps section headers: +0.06em tracking)
     val Label11 = TextStyle(
-        fontFamily = InterFontFamily,
+        fontFamily = RobotoMonoFontFamily,
         fontWeight = FontWeight.Medium,
         fontSize = 11.sp,
         letterSpacing = 0.06.em
     )
 
-    // 20sp Page Title (Medium)
-    val PageTitle20 = TextStyle(
-        fontFamily = InterFontFamily,
-        fontWeight = FontWeight.Medium,
-        fontSize = 20.sp,
-        letterSpacing = (-0.01).em
-    )
-
-    // 15sp Card Title (Medium)
-    val CardTitle15 = TextStyle(
-        fontFamily = InterFontFamily,
-        fontWeight = FontWeight.Medium,
-        fontSize = 15.sp,
-        letterSpacing = 0.em
-    )
-
-    // 13sp Body Secondary / Subtitle
-    val BodySecondary13 = TextStyle(
-        fontFamily = InterFontFamily,
-        fontWeight = FontWeight.Normal,
-        fontSize = 13.sp,
-        letterSpacing = 0.01.em
-    )
-
-    // Monospace Scales (Host URL, Device ID, Storage sizes, hashes, technical metrics)
+    // Monospace Scales (e.g. 00 COMPLETED // 00 WATCHING // 05 QUEUED)
     val Mono11 = TextStyle(
         fontFamily = RobotoMonoFontFamily,
         fontWeight = FontWeight.Medium,
         fontSize = 11.sp,
-        letterSpacing = 0.em
+        letterSpacing = 0.02.em
     )
 
     val Mono12 = TextStyle(
         fontFamily = RobotoMonoFontFamily,
         fontWeight = FontWeight.Normal,
         fontSize = 12.sp,
-        letterSpacing = 0.em
+        letterSpacing = 0.02.em
     )
 
     val Mono13 = TextStyle(
         fontFamily = RobotoMonoFontFamily,
-        fontWeight = FontWeight.Normal,
+        fontWeight = FontWeight.Medium,
         fontSize = 13.sp,
-        letterSpacing = 0.em
+        letterSpacing = 0.02.em
     )
 
     val Mono15 = TextStyle(
@@ -155,8 +159,8 @@ val PhotoVaultTypography = Typography(
     displayMedium = MnemosType.Headline28,
     headlineMedium = MnemosType.Headline28,
     titleLarge = MnemosType.Title22,
-    titleMedium = MnemosType.BodyLarge17.copy(fontWeight = FontWeight.SemiBold),
-    titleSmall = MnemosType.Body15.copy(fontWeight = FontWeight.Medium),
+    titleMedium = MnemosType.PageTitle20,
+    titleSmall = MnemosType.CardTitle15,
     bodyLarge = MnemosType.BodyLarge17,
     bodyMedium = MnemosType.Body15,
     bodySmall = MnemosType.BodySmall13,

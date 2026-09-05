@@ -38,28 +38,27 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.photovault.PhotoVaultApplication
 import com.photovault.data.model.HealthResponse
 import com.photovault.ui.components.ButtonVariant
+import com.photovault.ui.components.FrameHeroHeader
 import com.photovault.ui.components.HapticHelper
 import com.photovault.ui.components.IconTintVariant
 import com.photovault.ui.components.MnemosButton
 import com.photovault.ui.components.MnemosCard
-import com.photovault.ui.components.MnemosPageHeader
 import com.photovault.ui.components.MnemosRowCard
-import com.photovault.ui.theme.IrisLight
-import com.photovault.ui.theme.IrisSubtle
+import com.photovault.ui.theme.FrameBlack
+import com.photovault.ui.theme.FrameBorder
+import com.photovault.ui.theme.FrameGray100
+import com.photovault.ui.theme.FrameGray300
+import com.photovault.ui.theme.FrameGray500
+import com.photovault.ui.theme.FrameGray900
+import com.photovault.ui.theme.FrameWhite
 import com.photovault.ui.theme.MnemosType
-import com.photovault.ui.theme.Slate200
-import com.photovault.ui.theme.Slate400
-import com.photovault.ui.theme.Slate50
-import com.photovault.ui.theme.Slate800
-import com.photovault.ui.theme.Slate900
-import com.photovault.ui.theme.Slate950
-import com.photovault.ui.theme.TomatoRed
-import com.photovault.ui.theme.TomatoSubtle
+import com.photovault.ui.theme.SignalRed
+import com.photovault.ui.theme.SignalRedSubtle
 import java.io.File
 
 @Composable
@@ -96,67 +95,69 @@ fun SettingsScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Slate950)
+            .background(FrameBlack)
             .statusBarsPadding()
     ) {
-        // 20px Page Header
-        MnemosPageHeader(
-            title = "Settings",
-            subtitle = "Node telemetry, cluster & cache management"
+        // FRAME Hero Header
+        FrameHeroHeader(
+            title = "SYSTEM // TELEMETRY",
+            subtitle = "TAILSCALE NODE CONFIGURATION & SERVER HEALTH"
         )
+
+        Spacer(modifier = Modifier.height(4.dp))
 
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState())
-                .padding(horizontal = 16.dp, vertical = 8.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+                .padding(horizontal = 16.dp, vertical = 6.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             // Server Connection Card
             MnemosCard(modifier = Modifier.fillMaxWidth()) {
                 Column(
                     modifier = Modifier.fillMaxWidth(),
-                    verticalArrangement = Arrangement.spacedBy(14.dp)
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
                         Box(
                             modifier = Modifier
                                 .size(32.dp)
                                 .clip(CircleShape)
-                                .background(IrisSubtle),
+                                .background(SignalRedSubtle),
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Dns,
                                 contentDescription = null,
-                                tint = IrisLight,
+                                tint = SignalRed,
                                 modifier = Modifier.size(16.dp)
                             )
                         }
                         Text(
-                            text = "Server Connection",
+                            text = "SERVER CONNECTION",
                             style = MnemosType.CardTitle15,
-                            color = Slate50
+                            color = FrameWhite
                         )
                     }
 
-                    SettingsDataRow(label = "Host URL", value = serverUrl, isMono = true)
-                    SettingsDataRow(label = "Device ID", value = deviceId.take(16) + "…", isMono = true)
+                    SettingsDataRow(label = "HOST // URL", value = serverUrl, isMono = true)
+                    SettingsDataRow(label = "NODE // ID", value = deviceId.take(16) + "…", isMono = true)
                     SettingsDataRow(
-                        label = "Vault Status",
-                        value = if (healthData?.database == "ok") "Connected & Healthy" else "Checking…",
-                        isMono = false
+                        label = "STATUS",
+                        value = if (healthData?.database == "ok") "CONNECTED // HEALTHY" else "CHECKING…",
+                        isMono = true
                     )
                 }
             }
 
             // Paired Devices Card
             MnemosRowCard(
-                title = "Paired Cluster Devices",
-                subtitle = "Inspect node roster, device types & sync status",
+                title = "CLUSTER HARDWARE NODES",
+                subtitle = "Inspect paired devices, OS types & sync state",
                 icon = Icons.Default.Devices,
                 iconTintVariant = IconTintVariant.IRIS,
                 onClick = {
@@ -167,7 +168,7 @@ fun SettingsScreen(
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
                         contentDescription = null,
-                        tint = Slate400,
+                        tint = FrameGray500,
                         modifier = Modifier.size(18.dp)
                     )
                 }
@@ -175,8 +176,8 @@ fun SettingsScreen(
 
             // Trash & Deleted Items Card
             MnemosRowCard(
-                title = "Trash & Deleted Items",
-                subtitle = "Restore or permanently erase vault media",
+                title = "TRASH & DELETED BLOBS",
+                subtitle = "Restore or permanently purge deleted items",
                 icon = Icons.Default.Delete,
                 iconTintVariant = IconTintVariant.DESTRUCTIVE,
                 onClick = {
@@ -187,7 +188,7 @@ fun SettingsScreen(
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
                         contentDescription = null,
-                        tint = Slate400,
+                        tint = FrameGray500,
                         modifier = Modifier.size(18.dp)
                     )
                 }
@@ -198,42 +199,42 @@ fun SettingsScreen(
                 MnemosCard(modifier = Modifier.fillMaxWidth()) {
                     Column(
                         modifier = Modifier.fillMaxWidth(),
-                        verticalArrangement = Arrangement.spacedBy(14.dp)
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
                         ) {
                             Box(
                                 modifier = Modifier
                                     .size(32.dp)
                                     .clip(CircleShape)
-                                    .background(IrisSubtle),
+                                    .background(SignalRedSubtle),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Icon(
                                     imageVector = Icons.Default.Storage,
                                     contentDescription = null,
-                                    tint = IrisLight,
+                                    tint = SignalRed,
                                     modifier = Modifier.size(16.dp)
                                 )
                             }
                             Text(
-                                text = "Vault Telemetry",
+                                text = "VAULT STORAGE METRICS",
                                 style = MnemosType.CardTitle15,
-                                color = Slate50
+                                color = FrameWhite
                             )
                         }
 
-                        SettingsDataRow(label = "Total Photos", value = "${health.totalPhotos}", isMono = true)
-                        SettingsDataRow(label = "Total Videos", value = "${health.totalVideos}", isMono = true)
+                        SettingsDataRow(label = "TOTAL PHOTOS", value = "${health.totalPhotos}", isMono = true)
+                        SettingsDataRow(label = "TOTAL VIDEOS", value = "${health.totalVideos}", isMono = true)
                         SettingsDataRow(
-                            label = "Vault Storage",
+                            label = "VAULT USAGE",
                             value = "${(health.vaultBytes / (1024 * 1024 * 1024.0)).format(2)} GB",
                             isMono = true
                         )
                         SettingsDataRow(
-                            label = "Disk Free",
+                            label = "DISK FREE",
                             value = "${(health.diskFreeBytes / (1024 * 1024 * 1024.0)).format(1)} GB",
                             isMono = true
                         )
@@ -245,41 +246,41 @@ fun SettingsScreen(
             MnemosCard(modifier = Modifier.fillMaxWidth()) {
                 Column(
                     modifier = Modifier.fillMaxWidth(),
-                    verticalArrangement = Arrangement.spacedBy(14.dp)
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
                         Box(
                             modifier = Modifier
                                 .size(32.dp)
                                 .clip(CircleShape)
-                                .background(Slate800),
+                                .background(FrameGray900),
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
                                 imageVector = Icons.Default.CleaningServices,
                                 contentDescription = null,
-                                tint = Slate400,
+                                tint = FrameGray300,
                                 modifier = Modifier.size(16.dp)
                             )
                         }
                         Text(
-                            text = "Offline Media Cache",
+                            text = "OFFLINE MEDIA CACHE",
                             style = MnemosType.CardTitle15,
-                            color = Slate50
+                            color = FrameWhite
                         )
                     }
 
                     SettingsDataRow(
-                        label = "Cached Thumbnails & Blobs",
+                        label = "CACHED BLOBS",
                         value = "$cacheSizeMb MB",
                         isMono = true
                     )
 
                     MnemosButton(
-                        text = "Clear Offline Cache",
+                        text = "CLEAR OFFLINE CACHE",
                         onClick = {
                             HapticHelper.performClick(view)
                             val cacheDir = File(context.cacheDir, "photovault_media_cache")
@@ -292,11 +293,11 @@ fun SettingsScreen(
                 }
             }
 
-            Spacer(modifier = Modifier.height(6.dp))
+            Spacer(modifier = Modifier.height(4.dp))
 
-            // Logout / Disconnect Button (Destructive Tomato Red)
+            // Logout / Disconnect Button (Signal Red)
             MnemosButton(
-                text = "Disconnect & Log Out",
+                text = "DISCONNECT & REVOKE ACCESS",
                 onClick = {
                     HapticHelper.vibrateWarning(context)
                     app.preferenceStore.clear()
@@ -321,13 +322,13 @@ private fun SettingsDataRow(label: String, value: String, isMono: Boolean = fals
     ) {
         Text(
             text = label,
-            style = MnemosType.BodySecondary13,
-            color = Slate400
+            style = MnemosType.Mono11,
+            color = FrameGray500
         )
         Text(
             text = value,
-            style = if (isMono) MnemosType.Mono12 else MnemosType.BodySecondary13.copy(fontWeight = FontWeight.Medium),
-            color = Slate200
+            style = if (isMono) MnemosType.Mono12 else MnemosType.BodySecondary13,
+            color = FrameWhite
         )
     }
 }

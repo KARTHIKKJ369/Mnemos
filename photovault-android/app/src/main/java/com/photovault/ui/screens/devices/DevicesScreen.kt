@@ -59,22 +59,25 @@ import androidx.compose.ui.unit.sp
 import com.photovault.PhotoVaultApplication
 import com.photovault.data.model.DeviceItem
 import com.photovault.ui.components.ButtonVariant
+import com.photovault.ui.components.FrameHeroHeader
 import com.photovault.ui.components.HapticHelper
 import com.photovault.ui.components.MnemosButton
 import com.photovault.ui.components.MnemosCard
-import com.photovault.ui.components.MnemosPageHeader
-import com.photovault.ui.theme.IrisLight
-import com.photovault.ui.theme.IrisPrimary
-import com.photovault.ui.theme.IrisSubtle
+import com.photovault.ui.components.RedDotIndicator
+import com.photovault.ui.theme.FrameBlack
+import com.photovault.ui.theme.FrameBorder
+import com.photovault.ui.theme.FrameBorderLight
+import com.photovault.ui.theme.FrameGray100
+import com.photovault.ui.theme.FrameGray300
+import com.photovault.ui.theme.FrameGray500
+import com.photovault.ui.theme.FrameGray900
+import com.photovault.ui.theme.FrameSurface
+import com.photovault.ui.theme.FrameWhite
 import com.photovault.ui.theme.MnemosType
-import com.photovault.ui.theme.Slate200
-import com.photovault.ui.theme.Slate400
-import com.photovault.ui.theme.Slate50
-import com.photovault.ui.theme.Slate800
-import com.photovault.ui.theme.Slate900
-import com.photovault.ui.theme.Slate950
-import com.photovault.ui.theme.TomatoRed
-import com.photovault.ui.theme.TomatoSubtle
+import com.photovault.ui.theme.RobotoMonoFontFamily
+import com.photovault.ui.theme.SignalRed
+import com.photovault.ui.theme.SignalRedSubtle
+import com.photovault.ui.theme.SpaceGroteskFontFamily
 import kotlinx.coroutines.launch
 
 @Composable
@@ -140,7 +143,7 @@ fun DevicesScreen(
                 downloadingDeviceId = null
                 downloadProgress = null
                 HapticHelper.vibrateSuccess(context)
-                Toast.makeText(context, "Downloaded $completed files from ${device.name} to gallery", Toast.LENGTH_LONG).show()
+                Toast.makeText(context, "Saved $completed files from ${device.name} to gallery", Toast.LENGTH_LONG).show()
             }.onFailure {
                 downloadingDeviceId = null
                 downloadProgress = null
@@ -154,11 +157,11 @@ fun DevicesScreen(
             val res = app.apiClient.deleteDevice(device.id)
             res.onSuccess {
                 HapticHelper.vibrateSuccess(context)
-                Toast.makeText(context, "Removed device ${device.name}", Toast.LENGTH_SHORT).show()
+                Toast.makeText(context, "Removed node ${device.name}", Toast.LENGTH_SHORT).show()
                 loadDevices()
             }.onFailure {
                 HapticHelper.vibrateWarning(context)
-                Toast.makeText(context, "Failed to remove device: ${it.localizedMessage}", Toast.LENGTH_LONG).show()
+                Toast.makeText(context, "Failed to remove node: ${it.localizedMessage}", Toast.LENGTH_LONG).show()
             }
         }
     }
@@ -166,46 +169,70 @@ fun DevicesScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Slate950)
+            .background(FrameBlack)
     ) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .statusBarsPadding()
         ) {
-            // 20px Page Header
-            MnemosPageHeader(
-                title = "Paired Devices",
-                subtitle = "${devices.size} active cluster nodes registered",
-                trailingAction = {
-                    IconButton(onClick = {
-                        HapticHelper.performClick(view)
-                        loadDevices()
-                    }) {
-                        Icon(
-                            imageVector = Icons.Default.Refresh,
-                            contentDescription = "Refresh",
-                            tint = Slate400,
-                            modifier = Modifier.size(20.dp)
+            // Top Bar: FRAME Hero Header
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 6.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.Top
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        RedDotIndicator(size = 7.dp)
+                        Text(
+                            text = String.format("%02d CLUSTER NODES // ONLINE", devices.size),
+                            style = MnemosType.Headline28,
+                            color = FrameWhite
                         )
                     }
+                    Spacer(modifier = Modifier.height(3.dp))
+                    Text(
+                        text = "BROWSE CAPTURED MEDIA & REMOTE HARDWARE NODES",
+                        style = MnemosType.Mono11,
+                        color = FrameGray500
+                    )
                 }
-            )
+
+                IconButton(onClick = {
+                    HapticHelper.performClick(view)
+                    loadDevices()
+                }) {
+                    Icon(
+                        imageVector = Icons.Default.Refresh,
+                        contentDescription = "Refresh",
+                        tint = FrameGray300,
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(6.dp))
 
             if (isLoading && devices.isEmpty()) {
                 Box(
                     modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.Center
                 ) {
-                    CircularProgressIndicator(color = IrisPrimary, strokeWidth = 2.dp)
+                    CircularProgressIndicator(color = SignalRed, strokeWidth = 2.dp)
                 }
             } else {
                 LazyColumn(
                     modifier = Modifier
                         .fillMaxSize()
                         .padding(horizontal = 16.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp),
-                    contentPadding = androidx.compose.foundation.layout.PaddingValues(bottom = 90.dp, top = 6.dp)
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                    contentPadding = androidx.compose.foundation.layout.PaddingValues(bottom = 90.dp, top = 4.dp)
                 ) {
                     items(devices, key = { it.id }) { device ->
                         val isCurrent = device.id == currentDeviceId
@@ -213,14 +240,14 @@ fun DevicesScreen(
                         val isDownloading = downloadingDeviceId == device.id
                         val isAdmin = device.name.contains("Admin", ignoreCase = true) || device.deviceType.lowercase() == "mac"
 
-                        DeviceCard(
+                        DeviceNodeCard(
                             device = device,
                             isCurrentDevice = isCurrent,
                             isAdmin = isAdmin,
                             mediaCount = itemCount,
                             isDownloading = isDownloading,
                             downloadProgress = if (isDownloading) downloadProgress else null,
-                            onViewPhotos = {
+                            onBrowseMedia = {
                                 HapticHelper.performClick(view)
                                 onNavigateToGalleryWithDevice(device.id, device.name)
                             },
@@ -242,18 +269,24 @@ fun DevicesScreen(
             AlertDialog(
                 onDismissRequest = { deviceToDelete = null },
                 title = {
-                    Text("Remove Node '${dev.name}'?", color = Slate50, style = MnemosType.CardTitle15)
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        RedDotIndicator(size = 6.dp)
+                        Text("REMOVE NODE '${dev.name.uppercase()}'?", color = FrameWhite, style = MnemosType.CardTitle15)
+                    }
                 },
                 text = {
                     Text(
                         "Are you sure you want to revoke '${dev.name}' (${dev.deviceType.uppercase()})? Files uploaded by this node will remain securely preserved on your vault server.",
-                        color = Slate400,
+                        color = FrameGray300,
                         style = MnemosType.BodySecondary13
                     )
                 },
                 confirmButton = {
                     MnemosButton(
-                        text = "Revoke Device",
+                        text = "REVOKE NODE",
                         onClick = {
                             deleteDevice(dev)
                             deviceToDelete = null
@@ -263,24 +296,24 @@ fun DevicesScreen(
                 },
                 dismissButton = {
                     TextButton(onClick = { deviceToDelete = null }) {
-                        Text("Cancel", color = Slate400)
+                        Text("CANCEL", style = MnemosType.Mono11, color = FrameGray500)
                     }
                 },
-                containerColor = Slate900
+                containerColor = FrameSurface
             )
         }
     }
 }
 
 @Composable
-private fun DeviceCard(
+private fun DeviceNodeCard(
     device: DeviceItem,
     isCurrentDevice: Boolean,
     isAdmin: Boolean,
     mediaCount: Int,
     isDownloading: Boolean,
     downloadProgress: Pair<Int, Int>?,
-    onViewPhotos: () -> Unit,
+    onBrowseMedia: () -> Unit,
     onDownloadAll: () -> Unit,
     onDeleteDevice: () -> Unit
 ) {
@@ -292,10 +325,13 @@ private fun DeviceCard(
         else -> Icons.Default.Computer
     }
 
-    MnemosCard(modifier = Modifier.fillMaxWidth()) {
+    MnemosCard(
+        modifier = Modifier.fillMaxWidth(),
+        onClick = onBrowseMedia
+    ) {
         Column(
             modifier = Modifier.fillMaxWidth(),
-            verticalArrangement = Arrangement.spacedBy(14.dp)
+            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -304,16 +340,17 @@ private fun DeviceCard(
             ) {
                 Box(
                     modifier = Modifier
-                        .size(32.dp)
-                        .clip(CircleShape)
-                        .background(if (isCurrentDevice) IrisSubtle else Slate800),
+                        .size(36.dp)
+                        .clip(RoundedCornerShape(6.dp))
+                        .background(if (isCurrentDevice) SignalRedSubtle else FrameGray900)
+                        .border(1.dp, if (isCurrentDevice) SignalRed else FrameBorder, RoundedCornerShape(6.dp)),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         imageVector = icon,
                         contentDescription = null,
-                        tint = if (isCurrentDevice) IrisLight else Slate400,
-                        modifier = Modifier.size(16.dp)
+                        tint = if (isCurrentDevice) SignalRed else FrameWhite,
+                        modifier = Modifier.size(18.dp)
                     )
                 }
 
@@ -323,23 +360,22 @@ private fun DeviceCard(
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         Text(
-                            text = device.name,
+                            text = device.name.uppercase(),
                             style = MnemosType.CardTitle15,
-                            color = Slate50
+                            color = FrameWhite
                         )
                         if (isCurrentDevice) {
                             Box(
                                 modifier = Modifier
-                                    .clip(RoundedCornerShape(4.dp))
-                                    .background(IrisSubtle)
-                                    .border(0.5.dp, IrisPrimary, RoundedCornerShape(4.dp))
-                                    .padding(horizontal = 5.dp, vertical = 2.dp)
+                                    .clip(RoundedCornerShape(3.dp))
+                                    .background(SignalRedSubtle)
+                                    .border(0.5.dp, SignalRed, RoundedCornerShape(3.dp))
+                                    .padding(horizontal = 4.dp, vertical = 1.dp)
                             ) {
                                 Text(
                                     text = "THIS PHONE",
-                                    color = IrisLight,
-                                    fontSize = 9.sp,
-                                    fontWeight = FontWeight.SemiBold
+                                    color = SignalRed,
+                                    style = MnemosType.Mono11.copy(fontSize = 8.sp, fontWeight = FontWeight.Bold)
                                 )
                             }
                         }
@@ -348,9 +384,9 @@ private fun DeviceCard(
                     Spacer(modifier = Modifier.height(2.dp))
 
                     Text(
-                        text = "Type: ${device.deviceType.uppercase()} • $mediaCount items in vault",
-                        style = MnemosType.Mono12,
-                        color = Slate400
+                        text = "${device.deviceType.uppercase()} // $mediaCount ITEMS IN VAULT",
+                        style = MnemosType.Mono11,
+                        color = FrameGray500
                     )
                 }
 
@@ -358,13 +394,13 @@ private fun DeviceCard(
                 if (!isAdmin && !isCurrentDevice) {
                     IconButton(
                         onClick = onDeleteDevice,
-                        modifier = Modifier.size(36.dp)
+                        modifier = Modifier.size(32.dp)
                     ) {
                         Icon(
                             imageVector = Icons.Default.DeleteOutline,
                             contentDescription = "Remove Device",
-                            tint = TomatoRed,
-                            modifier = Modifier.size(18.dp)
+                            tint = SignalRed,
+                            modifier = Modifier.size(16.dp)
                         )
                     }
                 }
@@ -379,12 +415,12 @@ private fun DeviceCard(
                     CircularProgressIndicator(
                         modifier = Modifier.size(14.dp),
                         strokeWidth = 2.dp,
-                        color = IrisPrimary
+                        color = SignalRed
                     )
                     Text(
-                        text = "Downloading ${downloadProgress.first}/${downloadProgress.second} files…",
-                        style = MnemosType.Mono12,
-                        color = IrisLight
+                        text = "DOWNLOADING ${downloadProgress.first}/${downloadProgress.second} FILES…",
+                        style = MnemosType.Mono11,
+                        color = FrameWhite
                     )
                 }
             }
@@ -395,15 +431,15 @@ private fun DeviceCard(
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 MnemosButton(
-                    text = "View Photos",
-                    onClick = onViewPhotos,
+                    text = "BROWSE MEDIA ($mediaCount)",
+                    onClick = onBrowseMedia,
                     modifier = Modifier.weight(1f),
-                    variant = ButtonVariant.OUTLINE,
+                    variant = ButtonVariant.PRIMARY,
                     icon = Icons.Default.PhotoLibrary
                 )
 
                 MnemosButton(
-                    text = if (isDownloading) "Downloading…" else "Download All",
+                    text = if (isDownloading) "SAVING…" else "DOWNLOAD",
                     onClick = onDownloadAll,
                     enabled = !isDownloading && mediaCount > 0,
                     modifier = Modifier.weight(1f),

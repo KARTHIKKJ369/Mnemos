@@ -42,21 +42,23 @@ import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.unit.dp
 import com.photovault.PhotoVaultApplication
 import com.photovault.ui.components.ButtonVariant
+import com.photovault.ui.components.FrameHeroHeader
 import com.photovault.ui.components.HapticHelper
 import com.photovault.ui.components.IconTintVariant
 import com.photovault.ui.components.MnemosButton
 import com.photovault.ui.components.MnemosCard
-import com.photovault.ui.components.MnemosPageHeader
 import com.photovault.ui.components.MnemosRowCard
 import com.photovault.ui.components.MnemosSwitch
-import com.photovault.ui.theme.IrisLight
-import com.photovault.ui.theme.IrisPrimary
-import com.photovault.ui.theme.IrisSubtle
+import com.photovault.ui.components.RedDotIndicator
+import com.photovault.ui.theme.FrameBlack
+import com.photovault.ui.theme.FrameBorder
+import com.photovault.ui.theme.FrameGray300
+import com.photovault.ui.theme.FrameGray500
+import com.photovault.ui.theme.FrameGray900
+import com.photovault.ui.theme.FrameWhite
 import com.photovault.ui.theme.MnemosType
-import com.photovault.ui.theme.Slate400
-import com.photovault.ui.theme.Slate50
-import com.photovault.ui.theme.Slate800
-import com.photovault.ui.theme.Slate950
+import com.photovault.ui.theme.SignalRed
+import com.photovault.ui.theme.SignalRedSubtle
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -76,7 +78,7 @@ fun BackupScreen() {
     var uploadProgress by remember { mutableFloatStateOf(0f) }
     var currentUploadIndex by remember { mutableIntStateOf(0) }
     var totalUploadCount by remember { mutableIntStateOf(0) }
-    var uploadStatusMessage by remember { mutableStateOf("Ready to upload") }
+    var uploadStatusMessage by remember { mutableStateOf("READY // IDLE") }
 
     // Android System Photo Picker
     val photoPickerLauncher = rememberLauncherForActivityResult(
@@ -90,7 +92,7 @@ fun BackupScreen() {
             scope.launch {
                 for ((index, uri) in uris.withIndex()) {
                     currentUploadIndex = index + 1
-                    uploadStatusMessage = "Uploading item $currentUploadIndex of $totalUploadCount…"
+                    uploadStatusMessage = "UPLOADING // $currentUploadIndex OF $totalUploadCount"
                     uploadProgress = 0f
 
                     val file = copyUriToTempFile(context, uri)
@@ -103,7 +105,7 @@ fun BackupScreen() {
                     }
                 }
                 isUploading = false
-                uploadStatusMessage = "Successfully uploaded $totalUploadCount items"
+                uploadStatusMessage = "SUCCESS // $totalUploadCount ITEMS SYNCED"
                 HapticHelper.vibrateSuccess(context)
             }
         }
@@ -112,25 +114,27 @@ fun BackupScreen() {
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Slate950)
+            .background(FrameBlack)
             .statusBarsPadding()
     ) {
-        // 20px Page Header
-        MnemosPageHeader(
-            title = "Backup",
-            subtitle = "Camera roll auto-sync & manual uploads"
+        // FRAME Hero Header
+        FrameHeroHeader(
+            title = "BACKGROUND SYNC // VAULT",
+            subtitle = "CONTINUOUS CAMERA ROLL BACKUP & DIRECT BLOB UPLOAD"
         )
+
+        Spacer(modifier = Modifier.height(4.dp))
 
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(horizontal = 16.dp, vertical = 8.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+                .padding(horizontal = 16.dp, vertical = 6.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             // Auto-Backup Row Card
             MnemosRowCard(
-                title = "Auto-Backup Camera Roll",
-                subtitle = "Sync new photos and videos automatically when connected to server",
+                title = "AUTO-SYNC CAMERA ROLL",
+                subtitle = "Automatically stream new media in background when server is reachable",
                 icon = Icons.Default.Sync,
                 iconTintVariant = IconTintVariant.IRIS,
                 trailingContent = {
@@ -148,7 +152,7 @@ fun BackupScreen() {
             MnemosCard(modifier = Modifier.fillMaxWidth()) {
                 Column(
                     modifier = Modifier.fillMaxWidth(),
-                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                    verticalArrangement = Arrangement.spacedBy(14.dp)
                 ) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -158,13 +162,13 @@ fun BackupScreen() {
                             modifier = Modifier
                                 .size(32.dp)
                                 .clip(CircleShape)
-                                .background(IrisSubtle),
+                                .background(SignalRedSubtle),
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
                                 imageVector = Icons.Default.CloudUpload,
                                 contentDescription = null,
-                                tint = IrisLight,
+                                tint = SignalRed,
                                 modifier = Modifier.size(16.dp)
                             )
                         }
@@ -173,15 +177,15 @@ fun BackupScreen() {
 
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
-                                text = "Manual Upload",
+                                text = "MANUAL UPLOAD",
                                 style = MnemosType.CardTitle15,
-                                color = Slate50
+                                color = FrameWhite
                             )
                             Spacer(modifier = Modifier.height(2.dp))
                             Text(
-                                text = "Select photos or videos from your device to upload immediately",
+                                text = "Select photos or videos from local storage to sync immediately",
                                 style = MnemosType.BodySecondary13,
-                                color = Slate400
+                                color = FrameGray300
                             )
                         }
                     }
@@ -195,20 +199,20 @@ fun BackupScreen() {
                                 progress = { uploadProgress },
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .height(6.dp)
+                                    .height(4.dp)
                                     .clip(CircleShape),
-                                color = IrisPrimary,
-                                trackColor = Slate800
+                                color = SignalRed,
+                                trackColor = FrameGray900
                             )
                             Text(
                                 text = uploadStatusMessage,
-                                style = MnemosType.Mono12,
-                                color = Slate400
+                                style = MnemosType.Mono11,
+                                color = FrameWhite
                             )
                         }
                     } else {
                         MnemosButton(
-                            text = "Select Photos & Videos",
+                            text = "SELECT PHOTOS & VIDEOS",
                             onClick = {
                                 HapticHelper.performClick(view)
                                 photoPickerLauncher.launch(
@@ -221,9 +225,9 @@ fun BackupScreen() {
                         )
 
                         Text(
-                            text = uploadStatusMessage,
-                            style = MnemosType.Mono12,
-                            color = Slate400
+                            text = "STATUS // $uploadStatusMessage",
+                            style = MnemosType.Mono11,
+                            color = FrameGray500
                         )
                     }
                 }

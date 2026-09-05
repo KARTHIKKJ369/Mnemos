@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Amber Aperture Ring (#D4A017) with 2.2dp stroke, radius 22dp centered at (54,54) -->
+    <path
+        android:strokeWidth="2.2"
+        android:strokeColor="#D4A017"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:pathData="M 54,32 A 22,22 0 1,0 54,76 A 22,22 0 1,0 54,32 Z" />
+    <!-- Solid Amber Memory-Node Center Dot, radius 4.5dp centered at (54,54) -->
+    <path
+        android:fillColor="#D4A017"
+        android:pathData="M 54,49.5 A 4.5,4.5 0 1,0 54,58.5 A 4.5,4.5 0 1,0 54,49.5 Z" />
+</vector>

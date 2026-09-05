@@ -34,6 +34,7 @@ class PhotoVaultClient(
     private val json = Json {
         ignoreUnknownKeys = true
         isLenient = true
+        encodeDefaults = true
     }
 
     private val okHttpClient: OkHttpClient = OkHttpClient.Builder()
@@ -73,9 +74,10 @@ class PhotoVaultClient(
         withContext(Dispatchers.IO) {
             try {
                 val cleanUrl = serverUrl.trim().trimEnd('/')
+                val sanitizedName = deviceName.trim().ifEmpty { "Android Device" }.take(100)
                 val payload = json.encodeToString(
                     DeviceRegistrationRequest.serializer(),
-                    DeviceRegistrationRequest(name = deviceName, deviceType = "android")
+                    DeviceRegistrationRequest(name = sanitizedName, deviceType = "android")
                 )
                 val body = payload.toRequestBody("application/json".toMediaTypeOrNull())
                 val request = Request.Builder()

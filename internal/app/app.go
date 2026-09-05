@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"path/filepath"
 	"time"
 
 	"photovault/internal/config"
@@ -18,10 +19,10 @@ import (
 	"photovault/internal/observability"
 	"photovault/internal/processing"
 	"photovault/internal/ratelimit"
+	"photovault/internal/scanning"
 	"photovault/internal/storage"
 	"photovault/internal/synchronization"
 	"photovault/internal/uploads"
-	"photovault/internal/vaults"
 )
 
 const databaseInitializationTimeout = 10 * time.Second
@@ -36,7 +37,9 @@ type App struct {
 }
 
 // New constructs a PhotoVault application, ensuring storage and database schema are ready.
-func New(cfg config.Config, logger *slog.Logger) (*App, error) {
+// spaHandler, when non-nil, is used as the catch-all HTTP handler to serve the
+// embedded React SPA for all non-API routes (production mode).
+func New(cfg config.Config, logger *slog.Logger, spaHandler http.Handler) (*App, error) {
 	layout, err := storage.Ensure(cfg.StoragePath)
 	if err != nil {
 		return nil, fmt.Errorf("prepare storage: %w", err)
@@ -62,26 +65,38 @@ func New(cfg config.Config, logger *slog.Logger) (*App, error) {
 	}
 
 	deviceService := devices.NewService(devices.NewSQLiteStore(db))
+	adminTokenPath := filepath.Join(layout.Root, ".admin_token")
+	if _, err := deviceService.EnsureAdminDevice(context.Background(), adminTokenPath); err != nil {
+		logger.Warn("could not ensure admin device", "err", err)
+	}
+
 	fileRepository := files.NewRepository(db)
 	blobStore := storage.NewBlobStore(layout)
 	processingRepository := processing.NewRepository(db)
 	indexRepository := mediaindex.NewRepository(db)
 	indexWorker := mediaindex.NewWorker(indexRepository, fileRepository, blobStore, logger)
 	indexWorker.Start(context.Background())
+	if enqueued, err := indexRepository.EnqueueMissingMetadata(context.Background()); err == nil && enqueued > 0 {
+		logger.Info("queued files for metadata extraction backfill", "count", enqueued)
+	}
 	mediaWorker := processing.NewWorker(processingRepository, processing.NewMediaProcessor(blobStore, layout), logger)
 	if err := mediaWorker.Start(context.Background()); err != nil {
 		syncRepository.Close()
 		db.Close()
 		return nil, fmt.Errorf("start media worker: %w", err)
 	}
+	if count, err := processingRepository.EnqueueAll(context.Background()); err == nil && count > 0 {
+		logger.Info("queued files for high-definition thumbnail generation", "count", count)
+	}
 	uploadHandler := uploads.NewHandler(blobStore, fileRepository, cfg.MaxUploadBytes, layout.Blobs, logger, processingRepository, indexRepository)
 	fileHandler := httpapi.NewFileHandler(files.NewService(fileRepository, files.NewLRUExistenceCache(cfg.HashCacheSize, cfg.HashCacheTTL)), logger)
 	mediaHandler := httpapi.NewMediaHandler(files.NewMediaService(fileRepository, blobStore), logger)
 	indexHandler := httpapi.NewIndexHandler(indexRepository)
-	vaultHandler := httpapi.NewVaultHandler(vaults.NewRepository(db))
 	metrics := observability.NewMetrics()
-	operationsHandler := httpapi.NewOperationsHandler(observability.Health{Database: db, StoragePath: layout.Root, Version: "dev", Commit: "unknown", StartedAt: time.Now(), Workers: func() bool { return true }}, metrics)
+	operationsHandler := httpapi.NewOperationsHandler(observability.Health{Database: db, StoragePath: layout.Root, Version: "1.0.0", Commit: "release", StartedAt: time.Now(), Workers: func() bool { return true }}, metrics)
 	syncHandler := httpapi.NewSyncHandler(syncService, logger)
+	folderScanner := scanning.NewFolderScanner(blobStore, fileRepository, layout.Root, logger, processingRepository, indexRepository)
+	storageHandler := httpapi.NewStorageHandler(folderScanner, deviceService, logger, layout.Root)
 	return &App{
 		database:       db,
 		syncRepository: syncRepository,
@@ -89,7 +104,7 @@ func New(cfg config.Config, logger *slog.Logger) (*App, error) {
 		indexWorker:    indexWorker,
 		server: &http.Server{
 			Addr:              cfg.HTTPAddress,
-			Handler:           httpapi.NewRouter(logger, deviceService, ratelimit.NewRegistrationLimiter(), deviceService, uploadHandler, http.HandlerFunc(fileHandler.Exists), syncHandler, mediaHandler, indexHandler, operationsHandler, vaultHandler),
+			Handler:           httpapi.NewRouter(logger, deviceService, ratelimit.NewRegistrationLimiter(), deviceService, uploadHandler, http.HandlerFunc(fileHandler.Exists), syncHandler, spaHandler, mediaHandler, indexHandler, operationsHandler, storageHandler),
 			ReadHeaderTimeout: 10 * time.Second,
 			IdleTimeout:       60 * time.Second,
 		},

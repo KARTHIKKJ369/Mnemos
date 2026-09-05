@@ -1,7 +1,6 @@
 # =========================================
 # Operating System
 # =========================================
-
 .DS_Store
 .AppleDouble
 .LSOverride
@@ -9,9 +8,8 @@ Thumbs.db
 Desktop.ini
 
 # =========================================
-# IDEs
+# IDEs & Editors
 # =========================================
-
 .vscode/
 .idea/
 *.swp
@@ -21,8 +19,8 @@ Desktop.ini
 # =========================================
 # Logs
 # =========================================
-
 *.log
+*.log.*
 logs/
 npm-debug.log*
 yarn-debug.log*
@@ -30,84 +28,11 @@ yarn-error.log*
 pnpm-debug.log*
 
 # =========================================
-# Environment
+# Environment & Secrets (NEVER COMMIT)
 # =========================================
-
 .env
 .env.*
 !.env.example
-
-# =========================================
-# Go
-# =========================================
-
-bin/
-dist/
-coverage.out
-*.test
-*.prof
-
-# Go workspace
-go.work.sum
-
-# =========================================
-# Frontend (Node/Vite)
-# =========================================
-
-node_modules/
-
-frontend/node_modules/
-frontend/dist/
-frontend/.vite/
-
-mnemos-web/node_modules/
-mnemos-web/dist/
-mnemos-web/.vite/
-
-# =========================================
-# Build Outputs
-# =========================================
-
-build/
-release/
-out/
-tmp/
-
-# =========================================
-# Coverage
-# =========================================
-
-coverage/
-.coverage
-coverage.html
-
-# =========================================
-# Database
-# (Keep example configs, ignore runtime data)
-# =========================================
-
-data/
-db/
-*.db
-*.sqlite
-*.sqlite3
-*.db-shm
-*.db-wal
-
-# =========================================
-# Uploads / User Files
-# =========================================
-
-uploads/
-media/
-storage/
-vaults/
-chunks/
-
-# =========================================
-# Secrets
-# =========================================
-
 *.pem
 *.key
 *.crt
@@ -115,33 +40,72 @@ chunks/
 *.pfx
 
 # =========================================
-# Archives
+# Go Binaries & Artifacts
 # =========================================
-
-*.zip
-*.tar
-*.gz
-*.7z
-
-# =========================================
-# Temporary Files
-# =========================================
-
-.cache/
-tmp/
-temp/
-
-# =========================================
-# Generated Assets
-# =========================================
-
+/bin/
+/photovault
 *.exe
 *.dll
 *.so
 *.dylib
-
-# =========================================
-# Testing
-# =========================================
-
+coverage.out
 .coverprofile
+*.test
+*.prof
+go.work.sum
+
+# =========================================
+# Node & Frontend Build Artifacts
+# =========================================
+node_modules/
+mnemos-web/node_modules/
+mnemos-web/dist/
+mnemos-web/.vite/
+*.tsbuildinfo
+mnemos-web/tsconfig.tsbuildinfo
+
+# =========================================
+# Databases & SQLite Runtime Data
+# =========================================
+data/
+db/
+*.db
+*.db-*
+*.sqlite
+*.sqlite3
+*.db-shm
+*.db-wal
+
+# =========================================
+# Vault Storage & User Media (NEVER COMMIT)
+# =========================================
+storage/
+/storage/
+vaults/
+/vaults/
+blobs/
+/blobs/
+thumbnails/
+/thumbnails/
+previews/
+/previews/
+uploads/
+/uploads/
+media/
+/media/
+chunks/
+/chunks/
+/Volumes/
+
+# =========================================
+# Temporary & Scratch Files
+# =========================================
+*.tmp
+*.temp
+tmp/
+temp/
+.cache/
+downloaded.txt
+phone.txt
+test.txt
+mnemos-web/patch-*.sh

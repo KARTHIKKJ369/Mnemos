@@ -2,6 +2,9 @@
 package config
 
 import (
+	"bufio"
+	"bytes"
+	"errors"
 	"fmt"
 	"log/slog"
 	"os"
@@ -21,6 +24,8 @@ const (
 	defaultSyncDefaultLimit = 100
 	defaultSyncMaxLimit     = 1000
 	defaultSyncAckMaxBatch  = 500
+
+	DefaultDotEnvPath = ".env"
 )
 
 // Config contains all runtime configuration for the server.
@@ -38,8 +43,10 @@ type Config struct {
 	SyncAckMaxBatch   int
 }
 
-// Load reads configuration from environment variables and validates it.
+// Load reads configuration from .env and environment variables, validating it.
 func Load() (Config, error) {
+	_ = ApplyDotEnv(DefaultDotEnvPath)
+
 	storagePath := valueOrDefault("PHOTOVAULT_STORAGE_PATH", defaultStoragePath)
 	storagePath = filepath.Clean(storagePath)
 
@@ -112,3 +119,149 @@ func parseLogLevel(value string) (slog.Level, error) {
 	}
 	return level, nil
 }
+
+// LoadDotEnv reads key-value pairs from a .env file.
+// If the file does not exist, it returns an empty map and nil error.
+func LoadDotEnv(filename string) (map[string]string, error) {
+	file, err := os.Open(filename)
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return map[string]string{}, nil
+		}
+		return nil, fmt.Errorf("open .env: %w", err)
+	}
+	defer file.Close()
+
+	result := make(map[string]string)
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		line := strings.TrimSpace(scanner.Text())
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+		key, val, ok := parseEnvLine(line)
+		if ok {
+			result[key] = val
+		}
+	}
+	if err := scanner.Err(); err != nil {
+		return nil, fmt.Errorf("scan .env: %w", err)
+	}
+	return result, nil
+}
+
+// ApplyDotEnv loads .env and sets environment variables that are not already set.
+func ApplyDotEnv(filename string) error {
+	vars, err := LoadDotEnv(filename)
+	if err != nil {
+		return err
+	}
+	for k, v := range vars {
+		if _, exists := os.LookupEnv(k); !exists {
+			_ = os.Setenv(k, v)
+		}
+	}
+	return nil
+}
+
+func parseEnvLine(line string) (string, string, bool) {
+	line = strings.TrimPrefix(line, "export ")
+	line = strings.TrimSpace(line)
+	idx := strings.Index(line, "=")
+	if idx <= 0 {
+		return "", "", false
+	}
+	key := strings.TrimSpace(line[:idx])
+	val := strings.TrimSpace(line[idx+1:])
+
+	// Handle quotes
+	if len(val) >= 2 {
+		if (strings.HasPrefix(val, `"`) && strings.HasSuffix(val, `"`)) ||
+			(strings.HasPrefix(val, `'`) && strings.HasSuffix(val, `'`)) {
+			val = val[1 : len(val)-1]
+		}
+	}
+	return key, val, true
+}
+
+// UpdateDotEnv updates or adds key=value in the specified .env file while preserving
+// existing lines and comments. Writes atomically via a temporary file.
+func UpdateDotEnv(filename, key, value string) error {
+	dir := filepath.Dir(filename)
+	if dir != "" && dir != "." {
+		if err := os.MkdirAll(dir, 0755); err != nil {
+			return fmt.Errorf("mkdir .env dir: %w", err)
+		}
+	}
+
+	var lines []string
+	keyFound := false
+	prefixMatch := key + "="
+	exportPrefixMatch := "export " + key + "="
+
+	if data, err := os.ReadFile(filename); err == nil {
+		scanner := bufio.NewScanner(bytes.NewReader(data))
+		for scanner.Scan() {
+			text := scanner.Text()
+			trimmed := strings.TrimSpace(text)
+			if strings.HasPrefix(trimmed, prefixMatch) || strings.HasPrefix(trimmed, exportPrefixMatch) {
+				lines = append(lines, formatEnvLine(key, value))
+				keyFound = true
+			} else {
+				lines = append(lines, text)
+			}
+		}
+		if err := scanner.Err(); err != nil {
+			return fmt.Errorf("read .env lines: %w", err)
+		}
+	} else if !errors.Is(err, os.ErrNotExist) {
+		return fmt.Errorf("read .env: %w", err)
+	}
+
+	if !keyFound {
+		if len(lines) == 0 {
+			lines = append(lines, "# PhotoVault Environment Configuration")
+		}
+		lines = append(lines, formatEnvLine(key, value))
+	}
+
+	tmpFile, err := os.CreateTemp(dir, ".env.tmp.*")
+	if err != nil {
+		return fmt.Errorf("create temp .env: %w", err)
+	}
+	tmpName := tmpFile.Name()
+	defer func() {
+		_ = tmpFile.Close()
+		_ = os.Remove(tmpName)
+	}()
+
+	writer := bufio.NewWriter(tmpFile)
+	for _, l := range lines {
+		if _, err := writer.WriteString(l + "\n"); err != nil {
+			return fmt.Errorf("write temp .env: %w", err)
+		}
+	}
+	if err := writer.Flush(); err != nil {
+		return fmt.Errorf("flush temp .env: %w", err)
+	}
+	if err := tmpFile.Sync(); err != nil {
+		return fmt.Errorf("sync temp .env: %w", err)
+	}
+	if err := tmpFile.Close(); err != nil {
+		return fmt.Errorf("close temp .env: %w", err)
+	}
+
+	if err := os.Rename(tmpName, filename); err != nil {
+		return fmt.Errorf("atomic rename .env: %w", err)
+	}
+	return nil
+}
+
+func formatEnvLine(key, value string) string {
+	if strings.ContainsAny(value, " \t\n\"'#$") {
+		escaped := strings.ReplaceAll(value, `"`, `\"`)
+		return fmt.Sprintf(`%s="%s"`, key, escaped)
+	}
+	return fmt.Sprintf("%s=%s", key, value)
+}
+

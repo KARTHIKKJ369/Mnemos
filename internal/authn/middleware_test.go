@@ -88,6 +88,23 @@ func TestMiddlewareAcceptsLowercaseBearerPrefix(t *testing.T) {
 	}
 }
 
+func TestMiddlewareAcceptsQueryToken(t *testing.T) {
+	t.Parallel()
+
+	handler := Middleware(testLogger(), testAuthenticator{device: devices.Device{ID: "device-1"}})(http.HandlerFunc(func(writer http.ResponseWriter, _ *http.Request) {
+		writer.WriteHeader(http.StatusNoContent)
+	}))
+
+	for _, path := range []string{"/protected?token=token-value", "/protected?_t=token-value"} {
+		request := httptest.NewRequest(http.MethodGet, path, nil)
+		response := httptest.NewRecorder()
+		handler.ServeHTTP(response, request)
+		if response.Code != http.StatusNoContent {
+			t.Fatalf("path %s: status code = %d, want %d", path, response.Code, http.StatusNoContent)
+		}
+	}
+}
+
 func testLogger() *slog.Logger {
 	return slog.New(slog.NewJSONHandler(io.Discard, nil))
 }

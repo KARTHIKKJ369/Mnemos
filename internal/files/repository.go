@@ -104,3 +104,12 @@ func findByHash(ctx context.Context, tx *sql.Tx, hash string) (File, error) {
 func isUniqueConstraint(err error) bool {
 	return strings.Contains(err.Error(), "UNIQUE constraint failed: files.hash")
 }
+
+// ReassignDeviceFiles updates the uploaded_by_device_id of all files from one device to another.
+func (r *Repository) ReassignDeviceFiles(ctx context.Context, fromDeviceID, toDeviceID string) error {
+	_, err := r.database.ExecContext(ctx, "UPDATE files SET uploaded_by_device_id = ? WHERE uploaded_by_device_id = ?", toDeviceID, fromDeviceID)
+	if err != nil {
+		return fmt.Errorf("reassign device files: %w", err)
+	}
+	return nil
+}

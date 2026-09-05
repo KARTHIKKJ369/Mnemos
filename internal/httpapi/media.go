@@ -3,9 +3,11 @@ package httpapi
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -78,6 +80,9 @@ func (handler *MediaHandler) derived(writer http.ResponseWriter, request *http.R
 	}
 	writer.Header().Set("Content-Type", contentType)
 	writer.Header().Set("ETag", `"`+tag+`"`)
+	// Thumbnails and previews are content-addressed (keyed by SHA-256 hash) and never change.
+	// Allow browsers and CDNs to cache them indefinitely to eliminate redundant downloads.
+	writer.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
 	http.ServeContent(writer, request, name, file.UploadedAt, blob)
 }
 
@@ -114,6 +119,9 @@ func (handler *MediaHandler) Original(writer http.ResponseWriter, request *http.
 
 	writer.Header().Set("Content-Type", file.MIMEType)
 	writer.Header().Set("ETag", `"`+file.Hash+`"`)
+	if request.URL.Query().Get("download") == "1" || request.URL.Query().Get("attachment") == "1" {
+		writer.Header().Set("Content-Disposition", fmt.Sprintf(`attachment; filename="%s"`, filepath.Base(file.OriginalFilename)))
+	}
 	http.ServeContent(writer, request, file.OriginalFilename, file.UploadedAt, blob)
 	handler.logger.Info("media retrieval completed", "device_id", device.ID, "file_id", file.ID, "size_bytes", file.SizeBytes, "duration_ms", handler.now().Sub(startedAt).Milliseconds())
 }

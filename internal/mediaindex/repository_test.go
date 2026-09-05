@@ -21,8 +21,21 @@ func TestSearchFavoriteAndSoftDelete(t *testing.T) {
 	if _, err := db.Exec("PRAGMA foreign_keys = OFF"); err != nil {
 		t.Fatal(err)
 	}
-	for _, f := range []files.File{{ID: "one", OriginalFilename: "Beach Sunset.jpg", MIMEType: "image/jpeg", SizeBytes: 10, UploadedAt: time.UnixMilli(1000)}, {ID: "two", OriginalFilename: "Receipt.png", MIMEType: "image/png", SizeBytes: 20, UploadedAt: time.UnixMilli(2000)}} {
-		if err := repo.Upsert(context.Background(), f, nil, nil); err != nil {
+	t1 := time.Date(2023, 5, 10, 14, 0, 0, 0, time.UTC)
+	for _, tc := range []struct {
+		f    files.File
+		meta ExtractedMetadata
+	}{
+		{
+			f:    files.File{ID: "one", OriginalFilename: "Beach Sunset.jpg", MIMEType: "image/jpeg", SizeBytes: 10, UploadedAt: time.UnixMilli(1000)},
+			meta: ExtractedMetadata{TakenAt: &t1},
+		},
+		{
+			f:    files.File{ID: "two", OriginalFilename: "Receipt.png", MIMEType: "image/png", SizeBytes: 20, UploadedAt: time.UnixMilli(2000)},
+			meta: ExtractedMetadata{},
+		},
+	} {
+		if err := repo.Upsert(context.Background(), tc.f, tc.meta); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -30,6 +43,29 @@ func TestSearchFavoriteAndSoftDelete(t *testing.T) {
 	if err != nil || len(items) != 1 || items[0].FileID != "one" {
 		t.Fatalf("search = %+v, %v", items, err)
 	}
+	if items[0].TakenAt == nil || !items[0].TakenAt.Equal(t1) {
+		t.Fatalf("expected taken_at %v, got %v", t1, items[0].TakenAt)
+	}
+
+	// Test sort by taken_at
+	sortedItems, err := repo.Search(context.Background(), Search{Sort: "taken_at", Order: "desc", Limit: 10})
+	if err != nil || len(sortedItems) != 2 {
+		t.Fatalf("sort taken_at = %+v, %v", sortedItems, err)
+	}
+	// "two" has uploaded_at 2000 ms, "one" has taken_at 2023 (which is much later than 2000ms), so "one" should be first in desc
+	if sortedItems[0].FileID != "one" {
+		t.Fatalf("expected first item 'one', got %s", sortedItems[0].FileID)
+	}
+
+	// Test EnqueueMissingMetadata
+	enqueued, err := repo.EnqueueMissingMetadata(context.Background())
+	if err != nil {
+		t.Fatalf("EnqueueMissingMetadata error: %v", err)
+	}
+	if enqueued != 1 { // Only "two" has taken_at == nil
+		t.Fatalf("expected 1 item enqueued, got %d", enqueued)
+	}
+
 	if err := repo.SetFavorite(context.Background(), "one", true); err != nil {
 		t.Fatal(err)
 	}
@@ -59,7 +95,7 @@ func BenchmarkIndexedFilenameSearch(b *testing.B) {
 	}
 	for i := 0; i < 10000; i++ {
 		f := files.File{ID: fmt.Sprintf("%d", i), OriginalFilename: fmt.Sprintf("holiday-beach-%d.jpg", i), MIMEType: "image/jpeg", UploadedAt: time.Now()}
-		if err := repo.Upsert(context.Background(), f, nil, nil); err != nil {
+		if err := repo.Upsert(context.Background(), f, ExtractedMetadata{}); err != nil {
 			b.Fatal(err)
 		}
 	}
@@ -70,3 +106,4 @@ func BenchmarkIndexedFilenameSearch(b *testing.B) {
 		}
 	}
 }
+

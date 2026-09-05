@@ -39,20 +39,78 @@ export function mediaDate(takenAt: string | null, uploadedAt: string): Date {
   return takenAt ? new Date(takenAt) : new Date(uploadedAt)
 }
 
-export function groupByMonth(
+export function formatTimelineDate(date: Date): string {
+  const now = new Date()
+  const isToday =
+    date.getDate() === now.getDate() &&
+    date.getMonth() === now.getMonth() &&
+    date.getFullYear() === now.getFullYear()
+  const yesterday = new Date(now)
+  yesterday.setDate(yesterday.getDate() - 1)
+  const isYesterday =
+    date.getDate() === yesterday.getDate() &&
+    date.getMonth() === yesterday.getMonth() &&
+    date.getFullYear() === yesterday.getFullYear()
+
+  if (isToday) return 'Today'
+  if (isYesterday) return 'Yesterday'
+
+  const isThisYear = date.getFullYear() === now.getFullYear()
+  if (isThisYear) {
+    return date.toLocaleDateString('en-US', {
+      weekday: 'short',
+      month: 'short',
+      day: 'numeric',
+    })
+  }
+  return date.toLocaleDateString('en-US', {
+    weekday: 'short',
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  })
+}
+
+export function groupByDay(
   items: Media[],
-): Array<{ label: string; date: Date; items: Media[] }> {
-  const groups = new Map<string, { label: string; date: Date; items: Media[] }>()
+): Array<{ label: string; subLabel: string; date: Date; items: Media[] }> {
+  const groups = new Map<string, { label: string; subLabel: string; date: Date; items: Media[] }>()
   for (const item of items) {
     const date = mediaDate(item.TakenAt, item.UploadedAt)
-    const key = `${date.getFullYear()}-${date.getMonth()}`
+    const key = `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`
     if (!groups.has(key)) {
-      groups.set(key, { label: formatMonthYear(date), date, items: [] })
+      groups.set(key, {
+        label: formatTimelineDate(date),
+        subLabel: date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' }),
+        date,
+        items: [],
+      })
     }
     groups.get(key)!.items.push(item)
   }
   return Array.from(groups.values()).sort((a, b) => b.date.getTime() - a.date.getTime())
 }
+
+export function groupByMonth(
+  items: Media[],
+): Array<{ label: string; subLabel: string; date: Date; items: Media[] }> {
+  const groups = new Map<string, { label: string; subLabel: string; date: Date; items: Media[] }>()
+  for (const item of items) {
+    const date = mediaDate(item.TakenAt, item.UploadedAt)
+    const key = `${date.getFullYear()}-${date.getMonth()}`
+    if (!groups.has(key)) {
+      groups.set(key, {
+        label: formatMonthYear(date),
+        subLabel: `${date.getFullYear()}`,
+        date,
+        items: [],
+      })
+    }
+    groups.get(key)!.items.push(item)
+  }
+  return Array.from(groups.values()).sort((a, b) => b.date.getTime() - a.date.getTime())
+}
+
 
 export function isVideo(mime: string): boolean {
   return mime.startsWith('video/')

@@ -23,6 +23,17 @@ func (r *Repository) Enqueue(ctx context.Context, fileID string) error {
 	return nil
 }
 
+// EnqueueAll re-enqueues all ready files for processing to regenerate high-resolution thumbnails and previews.
+func (r *Repository) EnqueueAll(ctx context.Context) (int64, error) {
+	now := time.Now().UnixMilli()
+	res, err := r.database.ExecContext(ctx, `INSERT INTO media_processing_jobs (file_id, next_attempt_at, state) SELECT id, ?, 'pending' FROM files WHERE status = 'ready' ON CONFLICT(file_id) DO UPDATE SET state = 'pending', next_attempt_at = ?`, now, now)
+	if err != nil {
+		return 0, fmt.Errorf("enqueue all media jobs: %w", err)
+	}
+	rows, _ := res.RowsAffected()
+	return rows, nil
+}
+
 func (r *Repository) Recover(ctx context.Context) error {
 	_, err := r.database.ExecContext(ctx, "UPDATE media_processing_jobs SET state = 'pending' WHERE state = 'processing'")
 	if err != nil {
@@ -71,10 +82,16 @@ func (r *Repository) Complete(ctx context.Context, fileID, thumbnailPath, previe
 		if _, err := tx.ExecContext(ctx, "UPDATE files SET thumbnail_path = ? WHERE id = ?", thumbnailPath, fileID); err != nil {
 			return fmt.Errorf("update thumbnail path: %w", err)
 		}
+		if _, err := tx.ExecContext(ctx, "UPDATE media_index SET thumbnail_available = 1 WHERE file_id = ?", fileID); err != nil {
+			return fmt.Errorf("update media index thumbnail: %w", err)
+		}
 	}
 	if previewPath != "" {
 		if _, err := tx.ExecContext(ctx, "UPDATE files SET preview_path = ? WHERE id = ?", previewPath, fileID); err != nil {
 			return fmt.Errorf("update preview path: %w", err)
+		}
+		if _, err := tx.ExecContext(ctx, "UPDATE media_index SET preview_available = 1 WHERE file_id = ?", fileID); err != nil {
+			return fmt.Errorf("update media index preview: %w", err)
 		}
 	}
 	if _, err := tx.ExecContext(ctx, "UPDATE media_processing_jobs SET state = 'done', last_error = NULL WHERE file_id = ?", fileID); err != nil {

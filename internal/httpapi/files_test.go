@@ -105,7 +105,7 @@ func newFilesRouter(t *testing.T) (http.Handler, string) {
 	}
 	syncHandler := NewSyncHandler(syncService, logger)
 	uploadHandler := uploads.NewHandler(storage.NewBlobStore(layout), files.NewRepository(db), 1<<20, layout.Blobs, logger)
-	router := NewRouter(logger, deviceService, ratelimit.NewRegistrationLimiter(), deviceService, uploadHandler, http.HandlerFunc(fileHandler.Exists), syncHandler)
+	router := NewRouter(logger, deviceService, ratelimit.NewRegistrationLimiter(), deviceService, uploadHandler, http.HandlerFunc(fileHandler.Exists), syncHandler, nil)
 	return router, registration.Token
 }
 

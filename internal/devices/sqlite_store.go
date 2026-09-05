@@ -64,3 +64,50 @@ func (store *SQLiteStore) UpdateLastSeen(ctx context.Context, deviceID string, s
 	}
 	return nil
 }
+
+// List returns all registered devices ordered by last seen timestamp descending.
+func (store *SQLiteStore) List(ctx context.Context) ([]DeviceSummary, error) {
+	rows, err := store.database.QueryContext(ctx, `
+		SELECT id, name, device_type, created_at, last_seen_at
+		FROM devices
+		ORDER BY last_seen_at DESC
+	`)
+	if err != nil {
+		return nil, fmt.Errorf("select devices: %w", err)
+	}
+	defer rows.Close()
+
+	var result []DeviceSummary
+	for rows.Next() {
+		var d DeviceSummary
+		var createdAtMillis, lastSeenAtMillis int64
+		if err := rows.Scan(&d.ID, &d.Name, &d.DeviceType, &createdAtMillis, &lastSeenAtMillis); err != nil {
+			return nil, fmt.Errorf("scan device: %w", err)
+		}
+		d.CreatedAt = time.UnixMilli(createdAtMillis).UTC()
+		d.LastSeenAt = time.UnixMilli(lastSeenAtMillis).UTC()
+		result = append(result, d)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate devices: %w", err)
+	}
+	if result == nil {
+		result = []DeviceSummary{}
+	}
+	return result, nil
+}
+
+// Delete removes a registered device by its ID, reassigning its uploaded files to the admin device.
+func (store *SQLiteStore) Delete(ctx context.Context, id string) error {
+	var adminID string
+	_ = store.database.QueryRowContext(ctx, "SELECT id FROM devices ORDER BY created_at ASC LIMIT 1").Scan(&adminID)
+	if adminID != "" && adminID != id {
+		_, _ = store.database.ExecContext(ctx, "UPDATE files SET uploaded_by_device_id = ? WHERE uploaded_by_device_id = ?", adminID, id)
+	}
+	_, err := store.database.ExecContext(ctx, `DELETE FROM devices WHERE id = ?`, id)
+	if err != nil {
+		return fmt.Errorf("delete device: %w", err)
+	}
+	return nil
+}
+

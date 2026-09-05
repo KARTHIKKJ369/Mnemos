@@ -73,3 +73,69 @@ func (store *memoryStore) FindByTokenHash(_ context.Context, tokenHash string) (
 func (store *memoryStore) UpdateLastSeen(_ context.Context, _ string, _ time.Time) error {
 	return nil
 }
+
+func (store *memoryStore) List(_ context.Context) ([]DeviceSummary, error) {
+	if store.device.ID == "" {
+		return []DeviceSummary{}, nil
+	}
+	return []DeviceSummary{
+		{
+			ID:         store.device.ID,
+			Name:       store.device.Name,
+			DeviceType: store.device.DeviceType,
+		},
+	}, nil
+}
+
+func (store *memoryStore) Delete(_ context.Context, id string) error {
+	if store.device.ID == id {
+		store.device = Device{}
+		store.tokenHash = ""
+	}
+	return nil
+}
+
+func TestListDevices(t *testing.T) {
+	t.Parallel()
+
+	store := &memoryStore{}
+	service := NewService(store)
+	_, err := service.Register(context.Background(), "My Mac", "mac")
+	if err != nil {
+		t.Fatalf("Register() error = %v", err)
+	}
+
+	devices, err := service.List(context.Background())
+	if err != nil {
+		t.Fatalf("List() error = %v", err)
+	}
+	if len(devices) != 1 {
+		t.Fatalf("expected 1 device, got %d", len(devices))
+	}
+	if devices[0].Name != "My Mac" {
+		t.Fatalf("expected device name 'My Mac', got %q", devices[0].Name)
+	}
+}
+
+func TestDeleteDevice(t *testing.T) {
+	t.Parallel()
+
+	store := &memoryStore{}
+	service := NewService(store)
+	reg, err := service.Register(context.Background(), "To Delete", "ios")
+	if err != nil {
+		t.Fatalf("Register() error = %v", err)
+	}
+
+	if err := service.Delete(context.Background(), reg.Device.ID); err != nil {
+		t.Fatalf("Delete() error = %v", err)
+	}
+
+	devices, err := service.List(context.Background())
+	if err != nil {
+		t.Fatalf("List() error = %v", err)
+	}
+	if len(devices) != 0 {
+		t.Fatalf("expected 0 devices after deletion, got %d", len(devices))
+	}
+}

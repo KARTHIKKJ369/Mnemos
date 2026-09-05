@@ -25,7 +25,7 @@ func TestMediaProcessorGeneratesImageThumbnail(t *testing.T) {
 	if err := os.MkdirAll(filepath.Dir(absolute), 0o750); err != nil {
 		t.Fatal(err)
 	}
-	source := image.NewRGBA(image.Rect(0, 0, 512, 128))
+	source := image.NewRGBA(image.Rect(0, 0, 1440, 360))
 	source.Set(0, 0, color.White)
 	output, err := os.Create(absolute)
 	if err != nil {
@@ -52,8 +52,8 @@ func TestMediaProcessorGeneratesImageThumbnail(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got := thumbnail.Bounds().Size(); got.X != 256 || got.Y != 64 {
-		t.Fatalf("thumbnail size = %v, want 256x64", got)
+	if got := thumbnail.Bounds().Size(); got.X != 720 || got.Y != 180 {
+		t.Fatalf("thumbnail size = %v, want 720x180", got)
 	}
 }
 

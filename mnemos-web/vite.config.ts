@@ -20,9 +20,11 @@ export default defineConfig({
       '/api': {
         target: 'http://127.0.0.1:8080',
         changeOrigin: true,
+        xfwd: true,   // pass real client IP as X-Forwarded-For to Go server
         rewrite: (p) => p.replace(/^\/api/, ''),
       },
     },
   },
+
 })
 

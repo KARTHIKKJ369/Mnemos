@@ -1,127 +1,292 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { motion } from 'motion/react'
-import { useForm } from 'react-hook-form'
-import { zodResolver } from '@hookform/resolvers/zod'
-import { z } from 'zod'
-import { Images, Server, Smartphone } from 'lucide-react'
-import { registerDevice, APIClientError } from '@/api/client'
+import { Images, Smartphone, Laptop, Globe, ShieldCheck, AlertCircle, RefreshCw } from 'lucide-react'
+import { registerDevice, getAuthBootstrap, APIClientError } from '@/api/client'
 import { useAuthStore } from '@/stores/auth'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
+import type { DeviceType } from '@/types'
 
-const schema = z.object({
-  serverUrl: z.string().url('Must be a valid URL'),
-  deviceName: z.string().min(1, 'Required').max(100, 'Too long'),
-  deviceType: z.enum(['ios', 'android', 'mac', 'web'] as const),
-})
-
-type FormData = z.infer<typeof schema>
+function detectDevice(): { name: string; type: DeviceType } {
+  if (typeof navigator === 'undefined') return { name: 'My Device', type: 'web' }
+  const ua = navigator.userAgent
+  if (/iPhone|iPad|iPod/i.test(ua)) return { name: 'My iPhone', type: 'ios' }
+  if (/Android/i.test(ua)) return { name: 'My Android', type: 'android' }
+  if (/Macintosh/i.test(ua)) return { name: 'My MacBook', type: 'mac' }
+  return { name: 'My Browser', type: 'web' }
+}
 
 export function AuthPage() {
   const { setSession } = useAuthStore()
+  const [checkingBootstrap, setCheckingBootstrap] = useState(true)
+  const [networkBlocked, setNetworkBlocked] = useState(false)
   const [error, setError] = useState<string | null>(null)
-
-  const {
-    register,
-    handleSubmit,
-    formState: { errors, isSubmitting },
-  } = useForm<FormData>({
-    resolver: zodResolver(schema),
-    defaultValues: {
-      serverUrl: 'http://127.0.0.1:8080',
-      deviceName: 'My Browser',
-      deviceType: 'web',
-    },
+  const [serverUrl, setServerUrl] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return window.location.origin
+    }
+    return ''
   })
 
-  const onSubmit = async (data: FormData) => {
+  // Device setup state for Tailscale clients
+  const [detected] = useState(detectDevice)
+  const [deviceName, setDeviceName] = useState(detected.name)
+  const [deviceType, setDeviceType] = useState<DeviceType>(detected.type)
+  const [isSubmitting, setIsSubmitting] = useState(false)
+
+  // Manual token override state
+  const [showAdvanced, setShowAdvanced] = useState(false)
+  const [manualToken, setManualToken] = useState('')
+
+  useEffect(() => {
+    let active = true
+    async function checkBootstrap() {
+      try {
+        const res = await getAuthBootstrap()
+        if (!active) return
+
+        if (res.is_admin && res.auth_token && res.device_id) {
+          // Auto-authenticate host machine as Admin
+          setSession({
+            deviceId: res.device_id,
+            authToken: res.auth_token,
+            deviceName: res.device_name || 'Server Host (Admin)',
+            serverUrl: window.location.origin,
+            isAdmin: true,
+          })
+          return
+        }
+        setCheckingBootstrap(false)
+      } catch (err) {
+        if (!active) return
+        if (err instanceof APIClientError && err.status === 403) {
+          setNetworkBlocked(true)
+        }
+        setCheckingBootstrap(false)
+      }
+    }
+
+    checkBootstrap()
+    return () => {
+      active = false
+    }
+  }, [setSession])
+
+  const handleConnectDevice = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!deviceName.trim()) {
+      setError('Please enter a name for this device')
+      return
+    }
     setError(null)
+    setIsSubmitting(true)
+
     try {
-      const result = await registerDevice(data.deviceName, data.deviceType)
+      if (manualToken.trim()) {
+        setSession({
+          deviceId: 'token-device',
+          authToken: manualToken.trim(),
+          deviceName: deviceName.trim(),
+          serverUrl: window.location.origin,
+          isAdmin: false,
+        })
+        return
+      }
+
+      const result = await registerDevice(deviceName.trim(), deviceType)
       setSession({
         deviceId: result.device_id,
         authToken: result.auth_token,
-        deviceName: data.deviceName,
-        serverUrl: data.serverUrl,
+        deviceName: deviceName.trim(),
+        serverUrl: window.location.origin,
+        isAdmin: false,
       })
     } catch (err) {
       if (err instanceof APIClientError) {
         setError(err.message)
       } else {
-        setError('Could not connect to the server. Check the URL and try again.')
+        setError('Could not connect to PhotoVault. Check your Tailscale connection.')
       }
+    } finally {
+      setIsSubmitting(false)
     }
   }
 
+  if (checkingBootstrap) {
+    return (
+      <div className="min-h-screen bg-[--color-surface-base] flex items-center justify-center p-4">
+        <div className="flex flex-col items-center gap-3 text-center">
+          <div className="w-12 h-12 rounded-[--radius-lg] bg-[--color-accent] flex items-center justify-center shadow-lg">
+            <Images size={24} className="text-black" />
+          </div>
+          <div className="flex items-center gap-2 text-sm text-[--color-text-secondary]">
+            <RefreshCw size={14} className="animate-spin text-[--color-accent]" />
+            <span>Connecting to PhotoVault...</span>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  if (networkBlocked) {
+    return (
+      <div className="min-h-screen bg-[--color-surface-base] flex items-center justify-center p-4">
+        <div className="w-full max-w-sm rounded-[--radius-xl] border border-rose-500/20 bg-[--color-surface-overlay] p-6 text-center space-y-4">
+          <div className="w-12 h-12 rounded-full bg-rose-500/10 text-rose-500 flex items-center justify-center mx-auto">
+            <AlertCircle size={24} />
+          </div>
+          <h2 className="text-base font-bold text-[--color-text-primary]">
+            Network Access Restricted
+          </h2>
+          <p className="text-xs text-[--color-text-muted] leading-relaxed">
+            This PhotoVault server is strictly private and only accepts connections from your personal <strong>Tailscale</strong> network or localhost.
+          </p>
+          <div className="pt-2">
+            <Button size="sm" variant="default" onClick={() => window.location.reload()}>
+              Retry Connection
+            </Button>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   return (
-    <div className="min-h-screen bg-[--color-surface-base] flex items-center justify-center p-6">
+    <div className="min-h-screen bg-[--color-surface-base] flex items-center justify-center p-4">
       <motion.div
-        initial={{ opacity: 0, y: 12 }}
+        initial={{ opacity: 0, y: 16 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ type: 'spring', bounce: 0, duration: 0.32 }}
+        transition={{ duration: 0.25 }}
         className="w-full max-w-sm"
       >
-        <div className="flex items-center gap-3 mb-10">
-          <div className="w-9 h-9 rounded-[--radius-lg] bg-[--color-accent] flex items-center justify-center">
-            <Images size={18} className="text-[--color-surface-base]" />
-          </div>
-          <div>
-            <h1 className="text-base font-semibold text-[--color-text-primary] tracking-tight">Mnemos</h1>
-            <p className="text-xs text-[--color-text-muted]">Self-hosted photo vault</p>
-          </div>
-        </div>
-
-        <div className="space-y-1 mb-8">
-          <h2 className="text-xl font-semibold text-[--color-text-primary] tracking-tight">Connect to server</h2>
-          <p className="text-sm text-[--color-text-secondary]">Register this browser as a new device.</p>
-        </div>
-
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4" noValidate>
-          <div className="space-y-1.5">
-            <label className="text-xs font-medium text-[--color-text-secondary]">Server URL</label>
-            <Input {...register('serverUrl')} placeholder="http://100.x.x.x:8080" leftIcon={<Server size={13} />} autoComplete="url" />
-            {errors.serverUrl && <p className="text-xs text-[--color-danger]">{errors.serverUrl.message}</p>}
+        {/* Card */}
+        <div className="rounded-[--radius-xl] border border-[--color-border-subtle] bg-[--color-surface-overlay] p-6 shadow-xl space-y-6">
+          {/* Header */}
+          <div className="text-center space-y-2">
+            <div className="inline-flex items-center justify-center w-12 h-12 rounded-[--radius-lg] bg-[--color-accent] shadow-md mb-1">
+              <Images size={22} className="text-black" />
+            </div>
+            <h1 className="text-lg font-bold tracking-tight text-[--color-text-primary]">
+              PhotoVault
+            </h1>
+            <div className="flex items-center justify-center gap-1.5 text-xs text-emerald-400 font-medium">
+              <ShieldCheck size={13} />
+              <span>Tailscale Mesh Connected</span>
+            </div>
+            <p className="text-xs text-[--color-text-muted] leading-relaxed pt-1">
+              Identify this device to browse and upload photos to your personal cloud.
+            </p>
           </div>
 
-          <div className="space-y-1.5">
-            <label className="text-xs font-medium text-[--color-text-secondary]">Device name</label>
-            <Input {...register('deviceName')} placeholder="My Browser" leftIcon={<Smartphone size={13} />} autoComplete="off" />
-            {errors.deviceName && <p className="text-xs text-[--color-danger]">{errors.deviceName.message}</p>}
-          </div>
+          {/* Form */}
+          <form onSubmit={handleConnectDevice} className="space-y-4">
+            {/* Device Type Selector */}
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-[--color-text-secondary]">
+                Device Type
+              </label>
+              <div className="grid grid-cols-4 gap-2">
+                {(
+                  [
+                    { type: 'ios', label: 'iPhone', icon: <Smartphone size={16} /> },
+                    { type: 'android', label: 'Android', icon: <Smartphone size={16} /> },
+                    { type: 'mac', label: 'Laptop', icon: <Laptop size={16} /> },
+                    { type: 'web', label: 'Browser', icon: <Globe size={16} /> },
+                  ] as const
+                ).map((item) => (
+                  <button
+                    key={item.type}
+                    type="button"
+                    onClick={() => {
+                      setDeviceType(item.type)
+                      if (deviceName.startsWith('My ')) {
+                        setDeviceName(
+                          item.type === 'ios'
+                            ? "My iPhone"
+                            : item.type === 'android'
+                            ? "My Android"
+                            : item.type === 'mac'
+                            ? "My MacBook"
+                            : "My Browser",
+                        )
+                      }
+                    }}
+                    className={`flex flex-col items-center justify-center gap-1 p-2 rounded-[--radius-md] border text-xs cursor-pointer transition-all ${
+                      deviceType === item.type
+                        ? 'border-[--color-accent] bg-[--color-accent]/10 text-[--color-accent] font-semibold'
+                        : 'border-[--color-border-subtle] bg-[--color-surface-subtle] text-[--color-text-secondary] hover:text-[--color-text-primary]'
+                    }`}
+                  >
+                    {item.icon}
+                    <span className="text-[10px]">{item.label}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
 
-          <div className="space-y-1.5">
-            <label className="text-xs font-medium text-[--color-text-secondary]">Device type</label>
-            <select
-              {...register('deviceType')}
-              className="w-full px-3 h-9 text-sm bg-[--color-surface-overlay] text-[--color-text-primary] border border-[--color-border-default] rounded-[--radius-md] focus:outline-none focus:border-[--color-accent] transition-colors duration-[150ms]"
+            {/* Device Name Input */}
+            <div className="space-y-1">
+              <label className="text-xs font-semibold text-[--color-text-secondary]">
+                Device Name
+              </label>
+              <Input
+                value={deviceName}
+                onChange={(e) => setDeviceName(e.target.value)}
+                placeholder="e.g. Karthik's iPhone"
+                required
+              />
+            </div>
+
+            {/* Advanced Options Toggle */}
+            <div className="pt-1">
+              <button
+                type="button"
+                onClick={() => setShowAdvanced((s) => !s)}
+                className="text-[11px] text-[--color-text-muted] hover:text-[--color-text-primary] underline cursor-pointer"
+              >
+                {showAdvanced ? 'Hide server & token settings' : 'Advanced settings'}
+              </button>
+            </div>
+
+            {showAdvanced && (
+              <div className="space-y-3 pt-2 border-t border-[--color-border-subtle]">
+                <div className="space-y-1">
+                  <label className="text-[11px] text-[--color-text-muted]">Server URL</label>
+                  <Input
+                    value={serverUrl}
+                    onChange={(e) => setServerUrl(e.target.value)}
+                    placeholder="http://127.0.0.1:8080"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[11px] text-[--color-text-muted]">Token (Optional)</label>
+                  <Input
+                    value={manualToken}
+                    onChange={(e) => setManualToken(e.target.value)}
+                    placeholder="Existing bearer token"
+                  />
+                </div>
+              </div>
+            )}
+
+            {error && (
+              <div className="text-xs text-rose-500 bg-rose-500/10 border border-rose-500/20 p-2.5 rounded-[--radius-md]">
+                {error}
+              </div>
+            )}
+
+            <Button
+              type="submit"
+              variant="accent"
+              size="lg"
+              className="w-full font-semibold"
+              disabled={isSubmitting}
             >
-              <option value="web">Web</option>
-              <option value="mac">Mac</option>
-              <option value="ios">iOS</option>
-              <option value="android">Android</option>
-            </select>
-          </div>
-
-          {error && (
-            <motion.p
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              className="text-xs text-[--color-danger] bg-[--color-danger-surface] px-3 py-2 rounded-[--radius-md]"
-            >
-              {error}
-            </motion.p>
-          )}
-
-          <Button type="submit" variant="accent" size="lg" loading={isSubmitting} className="w-full mt-2">
-            Register device
-          </Button>
-        </form>
-
-        <p className="text-xs text-[--color-text-disabled] mt-8 text-center">
-          The auth token is shown only once and stored locally.
-        </p>
+              {isSubmitting ? 'Connecting...' : 'Connect Device'}
+            </Button>
+          </form>
+        </div>
       </motion.div>
     </div>
   )
 }
-

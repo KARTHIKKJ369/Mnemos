@@ -18,6 +18,8 @@ type IndexService interface {
 	Get(context.Context, string) (mediaindex.Media, error)
 	SetFavorite(context.Context, string, bool) error
 	SoftDelete(context.Context, string) error
+	Restore(context.Context, string) error
+	PermanentDelete(context.Context, string) error
 }
 type IndexHandler struct{ service IndexService }
 
@@ -72,6 +74,20 @@ func (h *IndexHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	}
 	h.writeMutation(w, h.service.SoftDelete(r.Context(), chi.URLParam(r, "id")))
 }
+func (h *IndexHandler) Restore(w http.ResponseWriter, r *http.Request) {
+	if _, ok := authn.DeviceFromContext(r.Context()); !ok {
+		httperror.Write(w, 401, "unauthorized", "authentication failed")
+		return
+	}
+	h.writeMutation(w, h.service.Restore(r.Context(), chi.URLParam(r, "id")))
+}
+func (h *IndexHandler) PermanentDelete(w http.ResponseWriter, r *http.Request) {
+	if _, ok := authn.DeviceFromContext(r.Context()); !ok {
+		httperror.Write(w, 401, "unauthorized", "authentication failed")
+		return
+	}
+	h.writeMutation(w, h.service.PermanentDelete(r.Context(), chi.URLParam(r, "id")))
+}
 func (h *IndexHandler) writeMutation(w http.ResponseWriter, err error) {
 	if errors.Is(err, mediaindex.ErrNotFound) {
 		httperror.Write(w, 404, "not_found", "media not found")
@@ -114,7 +130,7 @@ func parseSearch(r *http.Request) (mediaindex.Search, error) {
 	for _, field := range []struct {
 		key string
 		out **bool
-	}{{"favorite", &s.Favorite}, {"has_thumbnail", &s.HasThumbnail}, {"has_preview", &s.HasPreview}} {
+	}{{"favorite", &s.Favorite}, {"deleted", &s.Deleted}, {"has_thumbnail", &s.HasThumbnail}, {"has_preview", &s.HasPreview}} {
 		if v := q.Get(field.key); v != "" {
 			b, e := strconv.ParseBool(v)
 			if e != nil {
@@ -122,6 +138,12 @@ func parseSearch(r *http.Request) (mediaindex.Search, error) {
 			}
 			*field.out = &b
 		}
+	}
+	if devID := strings.TrimSpace(q.Get("device_id")); devID != "" {
+		s.DeviceID = devID
+	}
+	if exclDevID := strings.TrimSpace(q.Get("exclude_device_id")); exclDevID != "" {
+		s.ExcludeDeviceID = exclDevID
 	}
 	return s, nil
 }

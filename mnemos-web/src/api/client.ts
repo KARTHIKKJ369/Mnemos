@@ -1,15 +1,17 @@
 import type {
   DeviceRegistration,
+  DeviceSummary,
   DeviceType,
   ExistenceResult,
   Media,
   MediaSearchParams,
   MediaSearchResponse,
+  ServerHealth,
   SyncDiff,
   SyncAck,
+  AuthBootstrapResponse,
+  ScanStatus,
   UploadResponse,
-  VaultCreateResponse,
-  VaultType,
 } from '@/types'
 
 // ─── Base fetcher ─────────────────────────────────────────────────────────────
@@ -25,16 +27,49 @@ export class APIClientError extends Error {
   }
 }
 
-function getBaseURL(): string {
-  return (import.meta.env.VITE_API_URL as string | undefined) ?? '/api'
+export function getBaseURL(): string {
+  // If Vite dev server is running (e.g. port 5173), ALWAYS use relative '/api' proxy.
+  // This guarantees that any client device on LAN (e.g. 192.168.1.6:5173) or Tailscale
+  // automatically proxies all API requests, uploads, and media through the Vite dev server.
+  if (typeof window !== 'undefined' && window.location.port === '5173') {
+    return '/api'
+  }
+
+  try {
+    const raw = localStorage.getItem('mnemos_session')
+    if (raw) {
+      const parsed = JSON.parse(raw)
+      const serverUrl = parsed?.state?.session?.serverUrl ?? parsed?.session?.serverUrl ?? parsed?.serverUrl
+      if (serverUrl && typeof serverUrl === 'string' && serverUrl.trim() !== '') {
+        const trimmed = serverUrl.trim().replace(/\/+$/, '')
+        const isLoopback = trimmed.includes('127.0.0.1') || trimmed.includes('localhost')
+        const isRemote =
+          typeof window !== 'undefined' &&
+          window.location.hostname !== 'localhost' &&
+          window.location.hostname !== '127.0.0.1'
+
+        if (!(isLoopback && isRemote)) {
+          return trimmed
+        }
+      }
+    }
+  } catch {
+    // ignore parse error
+  }
+  return (import.meta.env.VITE_API_URL as string | undefined) ?? ''
 }
 
 function getToken(): string | null {
   try {
     const raw = localStorage.getItem('mnemos_session')
     if (!raw) return null
-    const session = JSON.parse(raw) as { authToken?: string }
-    return session.authToken ?? null
+    const parsed = JSON.parse(raw)
+    return (
+      parsed?.state?.session?.authToken ??
+      parsed?.session?.authToken ??
+      parsed?.authToken ??
+      null
+    )
   } catch {
     return null
   }
@@ -63,9 +98,13 @@ export async function apiFetch<T>(path: string, options: FetchOptions = {}): Pro
     let code = 'unknown_error'
     let message = `HTTP ${response.status}`
     try {
-      const body = (await response.json()) as { code?: string; message?: string }
-      code = body.code ?? code
-      message = body.message ?? message
+      const body = (await response.json()) as {
+        error?: { code?: string; message?: string }
+        code?: string
+        message?: string
+      }
+      code = body.error?.code ?? body.code ?? code
+      message = body.error?.message ?? body.message ?? message
     } catch {
       // ignore parse failure
     }
@@ -92,8 +131,8 @@ export async function registerDevice(
 
 // ─── Health ───────────────────────────────────────────────────────────────────
 
-export async function getHealth(): Promise<{ status: string }> {
-  return apiFetch<{ status: string }>('/health', { token: null })
+export async function getHealth(): Promise<ServerHealth> {
+  return apiFetch<ServerHealth>('/health', { token: null })
 }
 
 // ─── File existence (dedup) ───────────────────────────────────────────────────
@@ -137,8 +176,18 @@ export async function uploadFile(
         }
       } else {
         try {
-          const body = JSON.parse(xhr.responseText) as { code?: string; message?: string }
-          reject(new APIClientError(xhr.status, body.code ?? 'upload_error', body.message ?? 'Upload failed'))
+          const body = JSON.parse(xhr.responseText) as {
+            error?: { code?: string; message?: string }
+            code?: string
+            message?: string
+          }
+          reject(
+            new APIClientError(
+              xhr.status,
+              body.error?.code ?? body.code ?? 'upload_error',
+              body.error?.message ?? body.message ?? 'Upload failed',
+            ),
+          )
         } catch {
           reject(new APIClientError(xhr.status, 'upload_error', 'Upload failed'))
         }
@@ -162,8 +211,11 @@ export async function searchMedia(params: MediaSearchParams = {}): Promise<Media
   if (params.from) query.set('from', params.from)
   if (params.to) query.set('to', params.to)
   if (params.favorite !== undefined) query.set('favorite', String(params.favorite))
+  if (params.deleted !== undefined) query.set('deleted', String(params.deleted))
   if (params.has_thumbnail !== undefined) query.set('has_thumbnail', String(params.has_thumbnail))
   if (params.has_preview !== undefined) query.set('has_preview', String(params.has_preview))
+  if (params.device_id) query.set('device_id', params.device_id)
+  if (params.exclude_device_id) query.set('exclude_device_id', params.exclude_device_id)
   if (params.limit !== undefined) query.set('limit', String(params.limit))
   if (params.offset !== undefined) query.set('offset', String(params.offset))
   if (params.sort) query.set('sort', params.sort)
@@ -189,14 +241,37 @@ export async function deleteMedia(id: string): Promise<void> {
   return apiFetch<void>(`/media/${encodeURIComponent(id)}`, { method: 'DELETE' })
 }
 
-/** Build URL for media assets (no fetch — used in <img> src) */
+export async function restoreMedia(id: string): Promise<void> {
+  return apiFetch<void>(`/media/${encodeURIComponent(id)}/restore`, { method: 'POST' })
+}
+
+export async function permanentDeleteMedia(id: string): Promise<void> {
+  return apiFetch<void>(`/media/${encodeURIComponent(id)}/permanent`, { method: 'DELETE' })
+}
+
+/** Build URL for media assets (used in <img> and <video> src) */
 export function getMediaURL(id: string, type: 'original' | 'thumbnail' | 'preview'): string {
   const token = getToken()
   const base = `${getBaseURL()}/media/${encodeURIComponent(id)}/${type}`
-  // We can't easily set headers on img tags, so we use query param auth fallback
-  // The backend uses bearer token via header, so we need object URLs for <img>
-  // For thumbnails, we'll use a token query approach or a proxy component
-  return token ? `${base}?_t=${encodeURIComponent(token)}` : base
+  return token ? `${base}?token=${encodeURIComponent(token)}` : base
+}
+
+/** Build URL for downloading original media with Content-Disposition attachment */
+export function getDownloadURL(id: string): string {
+  const token = getToken()
+  const base = `${getBaseURL()}/media/${encodeURIComponent(id)}/original?download=1`
+  return token ? `${base}&token=${encodeURIComponent(token)}` : base
+}
+
+/** Trigger direct browser download of media */
+export function downloadMedia(id: string, filename?: string) {
+  const url = getDownloadURL(id)
+  const a = document.createElement('a')
+  a.href = url
+  if (filename) a.download = filename
+  document.body.appendChild(a)
+  a.click()
+  document.body.removeChild(a)
 }
 
 /** Fetch a media blob with auth (for use with object URLs in <img>) */
@@ -227,12 +302,87 @@ export async function ackSync(fileIds: string[]): Promise<SyncAck> {
   })
 }
 
-// ─── Vaults ───────────────────────────────────────────────────────────────────
+// ─── Devices ──────────────────────────────────────────────────────────────────
 
-export async function createVault(type: VaultType): Promise<VaultCreateResponse> {
-  return apiFetch<VaultCreateResponse>('/vaults', {
+export async function getDevices(): Promise<{ devices: DeviceSummary[] }> {
+  return apiFetch<{ devices: DeviceSummary[] }>('/devices')
+}
+
+export async function deleteDevice(id: string): Promise<void> {
+  return apiFetch<void>(`/devices/${id}`, { method: 'DELETE' })
+}
+
+// ─── Bootstrap & Storage Scan ──────────────────────────────────────────────────
+
+export async function getAuthBootstrap(serverUrl?: string): Promise<AuthBootstrapResponse> {
+  const base = (serverUrl || getBaseURL()).replace(/\/+$/, '')
+  const response = await fetch(`${base}/auth/bootstrap`, {
+    headers: { 'Accept': 'application/json' },
+  })
+  if (!response.ok) {
+    if (response.status === 403) {
+      throw new APIClientError(403, 'network_forbidden', 'Access restricted to private Tailscale network')
+    }
+    throw new APIClientError(response.status, 'bootstrap_error', 'Failed to fetch bootstrap')
+  }
+  return response.json()
+}
+
+export async function scanStorageFolder(path?: string): Promise<{ message?: string; status?: ScanStatus; imported?: number }> {
+  const base = getBaseURL()
+  const token = getToken()
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+  if (token) headers['Authorization'] = `Bearer ${token}`
+  const response = await fetch(`${base}/storage/scan`, {
     method: 'POST',
-    body: JSON.stringify({ type }),
+    headers,
+    body: JSON.stringify(path ? { path } : {}),
+  })
+  // 202 Accepted = scan started in background; 200 = legacy sync response
+  if (response.status === 202 || response.status === 200) return response.json()
+  let code = 'scan_error'
+  let message = `HTTP ${response.status}`
+  try {
+    const body = (await response.json()) as { error?: { code?: string; message?: string } }
+    code = body.error?.code ?? code
+    message = body.error?.message ?? message
+  } catch { /* ignore */ }
+  throw new APIClientError(response.status, code, message)
+}
+
+export async function getScanStatus(): Promise<ScanStatus> {
+  return apiFetch<ScanStatus>('/storage/scan/status')
+}
+
+export async function pickStorageFolder(): Promise<{ path?: string; cancelled: boolean }> {
+  return apiFetch<{ path?: string; cancelled: boolean }>('/storage/pick-folder', {
+    method: 'POST',
   })
 }
+
+export interface StorageConfig {
+  storage_path: string
+  env_path: string
+  env_exists: boolean
+}
+
+export interface UpdateStorageConfigResponse {
+  status: string
+  storage_path: string
+  requires_restart: boolean
+  message: string
+}
+
+export async function getStorageConfig(): Promise<StorageConfig> {
+  return apiFetch<StorageConfig>('/storage/config')
+}
+
+export async function updateStorageConfig(storagePath: string): Promise<UpdateStorageConfigResponse> {
+  return apiFetch<UpdateStorageConfigResponse>('/storage/config', {
+    method: 'POST',
+    body: JSON.stringify({ storage_path: storagePath }),
+  })
+}
+
+
 

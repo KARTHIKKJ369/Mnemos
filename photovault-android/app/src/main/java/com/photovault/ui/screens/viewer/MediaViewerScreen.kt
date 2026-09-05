@@ -78,6 +78,7 @@ import com.photovault.data.model.MediaItem
 import com.photovault.ui.components.ExoVideoPlayer
 import com.photovault.ui.components.HapticHelper
 import com.photovault.ui.components.ProgressiveMediaImage
+import com.photovault.ui.components.liquidGlass
 import com.photovault.ui.theme.AccentGold
 import com.photovault.ui.theme.DarkBackground
 import com.photovault.ui.theme.DarkSurfaceVariant
@@ -202,7 +203,7 @@ fun MediaViewerScreen(
             }
         }
 
-        // Top Floating Action Bar (safe padding with statusBarsPadding)
+        // Top Floating Liquid Glass Pill Bar
         AnimatedVisibility(
             visible = controlsVisible,
             enter = fadeIn() + slideInVertically { -it },
@@ -217,27 +218,37 @@ fun MediaViewerScreen(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Back Button
-                IconButton(
-                    onClick = {
-                        HapticHelper.performClick(view)
-                        onClose()
-                    },
+                // Liquid Glass Back Button
+                Box(
                     modifier = Modifier
-                        .size(42.dp)
-                        .background(Color.Black.copy(alpha = 0.75f), CircleShape)
+                        .size(44.dp)
+                        .liquidGlass(
+                            shape = CircleShape,
+                            backgroundColor = Color(0xD9101420),
+                            borderAlphaTop = 0.30f
+                        )
+                        .clickable {
+                            HapticHelper.performClick(view)
+                            onClose()
+                        },
+                    contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                         contentDescription = "Back",
-                        tint = Color.White
+                        tint = Color.White,
+                        modifier = Modifier.size(20.dp)
                     )
                 }
 
-                // Filename & Device pill
+                // Filename & Device Liquid Glass Capsule
                 Box(
                     modifier = Modifier
-                        .background(Color.Black.copy(alpha = 0.75f), RoundedCornerShape(20.dp))
+                        .liquidGlass(
+                            shape = RoundedCornerShape(24.dp),
+                            backgroundColor = Color(0xD9101420),
+                            borderAlphaTop = 0.25f
+                        )
                         .padding(horizontal = 14.dp, vertical = 8.dp)
                 ) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -261,10 +272,14 @@ fun MediaViewerScreen(
                     }
                 }
 
-                // Actions Pill (Download, Favorite, Info, Delete)
+                // Actions Liquid Glass Pill (Download, Favorite, Info, Delete)
                 Row(
                     modifier = Modifier
-                        .background(Color.Black.copy(alpha = 0.75f), RoundedCornerShape(20.dp))
+                        .liquidGlass(
+                            shape = RoundedCornerShape(24.dp),
+                            backgroundColor = Color(0xD9101420),
+                            borderAlphaTop = 0.25f
+                        )
                         .padding(horizontal = 4.dp, vertical = 2.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
@@ -340,7 +355,7 @@ fun MediaViewerScreen(
             }
         }
 
-        // Bottom Filmstrip Carousel: Only displayed for photos to never block video playback controls!
+        // Bottom Filmstrip Carousel: Liquid glass container, hidden during video playback
         if (!currentMedia.isVideo && mediaList.size > 1) {
             AnimatedVisibility(
                 visible = controlsVisible,
@@ -353,7 +368,11 @@ fun MediaViewerScreen(
             ) {
                 Box(
                     modifier = Modifier
-                        .background(Color.Black.copy(alpha = 0.75f), RoundedCornerShape(18.dp))
+                        .liquidGlass(
+                            shape = RoundedCornerShape(22.dp),
+                            backgroundColor = Color(0xE6101420),
+                            borderAlphaTop = 0.25f
+                        )
                         .padding(horizontal = 10.dp, vertical = 8.dp)
                 ) {
                     LazyRow(
@@ -442,7 +461,7 @@ fun MediaViewerScreen(
                             containerColor = AccentGold,
                             contentColor = Color.Black
                         ),
-                        shape = RoundedCornerShape(12.dp)
+                        shape = RoundedCornerShape(14.dp)
                     ) {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,

@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -71,11 +72,17 @@ import androidx.compose.ui.unit.sp
 import com.photovault.PhotoVaultApplication
 import com.photovault.data.model.DeviceItem
 import com.photovault.data.model.MediaItem
+import com.photovault.ui.components.GlassSurfaceBase
 import com.photovault.ui.components.HapticHelper
+import com.photovault.ui.components.LiquidGlassCard
+import com.photovault.ui.components.LiquidGlassPill
+import com.photovault.ui.components.liquidGlass
 import com.photovault.ui.theme.AccentGold
+import com.photovault.ui.theme.AccentGoldGlow
 import com.photovault.ui.theme.DarkBackground
 import com.photovault.ui.theme.DarkSurfaceVariant
 import com.photovault.ui.theme.DangerRed
+import com.photovault.ui.theme.EmeraldGreen
 import com.photovault.ui.theme.TextMuted
 import com.photovault.ui.theme.TextPrimary
 import com.photovault.ui.theme.TextSecondary
@@ -168,25 +175,38 @@ fun DevicesScreen(
         }
     }
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(DarkBackground)
+    ) {
+        Column(modifier = Modifier.fillMaxSize()) {
+            // Liquid Glass Top Bar
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .statusBarsPadding()
+                    .padding(horizontal = 16.dp, vertical = 8.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
                     Column {
                         Text(
                             text = "Vault Devices",
-                            fontSize = 20.sp,
+                            fontSize = 22.sp,
                             fontWeight = FontWeight.Bold,
                             color = TextPrimary
                         )
                         Text(
-                            text = "${devices.size} registered clients",
+                            text = "${devices.size} active nodes registered",
                             fontSize = 11.sp,
                             color = TextMuted
                         )
                     }
-                },
-                actions = {
+
                     IconButton(onClick = {
                         HapticHelper.performClick(view)
                         loadDevices()
@@ -194,102 +214,104 @@ fun DevicesScreen(
                         Icon(
                             imageVector = Icons.Default.Refresh,
                             contentDescription = "Refresh",
-                            tint = AccentGold
+                            tint = AccentGold,
+                            modifier = Modifier.size(20.dp)
                         )
                     }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = DarkBackground)
-            )
-        },
-        containerColor = DarkBackground
-    ) { paddingValues ->
-        if (isLoading && devices.isEmpty()) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(paddingValues),
-                contentAlignment = Alignment.Center
-            ) {
-                CircularProgressIndicator(color = AccentGold)
+                }
             }
-        } else {
-            LazyColumn(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(paddingValues)
-                    .padding(horizontal = 16.dp, vertical = 8.dp),
-                verticalArrangement = Arrangement.spacedBy(14.dp)
-            ) {
-                // Header Banner
-                item {
-                    Card(
-                        colors = CardDefaults.cardColors(containerColor = DarkSurfaceVariant),
-                        shape = RoundedCornerShape(16.dp),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(16.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(14.dp)
+
+            if (isLoading && devices.isEmpty()) {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    CircularProgressIndicator(color = AccentGold)
+                }
+            } else {
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(horizontal = 16.dp),
+                    verticalArrangement = Arrangement.spacedBy(14.dp),
+                    contentPadding = androidx.compose.foundation.layout.PaddingValues(bottom = 90.dp, top = 6.dp)
+                ) {
+                    // Header Liquid Glass Banner
+                    item {
+                        LiquidGlassCard(
+                            glowAccent = AccentGold,
+                            shape = RoundedCornerShape(24.dp),
+                            modifier = Modifier.fillMaxWidth()
                         ) {
-                            Box(
+                            Row(
                                 modifier = Modifier
-                                    .size(44.dp)
-                                    .background(AccentGold.copy(alpha = 0.15f), CircleShape),
-                                contentAlignment = Alignment.Center
+                                    .fillMaxWidth()
+                                    .padding(18.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(14.dp)
                             ) {
-                                Icon(
-                                    imageVector = Icons.Default.Devices,
-                                    contentDescription = null,
-                                    tint = AccentGold,
-                                    modifier = Modifier.size(24.dp)
-                                )
-                            }
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(
-                                    text = "Cross-Device Media Hub",
-                                    color = TextPrimary,
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 15.sp
-                                )
-                                Text(
-                                    text = "Manage connected clients, browse files, download media, or remove test devices.",
-                                    color = TextMuted,
-                                    fontSize = 12.sp
-                                )
+                                Box(
+                                    modifier = Modifier
+                                        .size(46.dp)
+                                        .liquidGlass(
+                                            shape = CircleShape,
+                                            backgroundColor = AccentGoldGlow,
+                                            borderColor = AccentGold,
+                                            borderAlphaTop = 0.40f
+                                        ),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Devices,
+                                        contentDescription = null,
+                                        tint = AccentGold,
+                                        modifier = Modifier.size(24.dp)
+                                    )
+                                }
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = "Cross-Device Node Hub",
+                                        color = TextPrimary,
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 15.sp
+                                    )
+                                    Text(
+                                        text = "Browse, batch-download, or revoke connected devices from your vault.",
+                                        color = TextMuted,
+                                        fontSize = 12.sp
+                                    )
+                                }
                             }
                         }
                     }
-                }
 
-                // Device Cards
-                items(devices, key = { it.id }) { device ->
-                    val isCurrent = device.id == currentDeviceId
-                    val itemCount = deviceMediaCounts[device.id] ?: 0
-                    val isDownloading = downloadingDeviceId == device.id
-                    val isAdmin = device.name.contains("Admin", ignoreCase = true) || device.deviceType.lowercase() == "mac"
+                    // Device Liquid Glass Cards
+                    items(devices, key = { it.id }) { device ->
+                        val isCurrent = device.id == currentDeviceId
+                        val itemCount = deviceMediaCounts[device.id] ?: 0
+                        val isDownloading = downloadingDeviceId == device.id
+                        val isAdmin = device.name.contains("Admin", ignoreCase = true) || device.deviceType.lowercase() == "mac"
 
-                    DeviceCard(
-                        device = device,
-                        isCurrentDevice = isCurrent,
-                        isAdmin = isAdmin,
-                        mediaCount = itemCount,
-                        isDownloading = isDownloading,
-                        downloadProgress = if (isDownloading) downloadProgress else null,
-                        onViewPhotos = {
-                            HapticHelper.performClick(view)
-                            onNavigateToGalleryWithDevice(device.id, device.name)
-                        },
-                        onDownloadAll = {
-                            downloadAllFromDevice(device)
-                        },
-                        onDeleteDevice = {
-                            HapticHelper.vibrateWarning(context)
-                            deviceToDelete = device
-                        }
-                    )
+                        DeviceCard(
+                            device = device,
+                            isCurrentDevice = isCurrent,
+                            isAdmin = isAdmin,
+                            mediaCount = itemCount,
+                            isDownloading = isDownloading,
+                            downloadProgress = if (isDownloading) downloadProgress else null,
+                            onViewPhotos = {
+                                HapticHelper.performClick(view)
+                                onNavigateToGalleryWithDevice(device.id, device.name)
+                            },
+                            onDownloadAll = {
+                                downloadAllFromDevice(device)
+                            },
+                            onDeleteDevice = {
+                                HapticHelper.vibrateWarning(context)
+                                deviceToDelete = device
+                            }
+                        )
+                    }
                 }
             }
         }
@@ -299,13 +321,13 @@ fun DevicesScreen(
             AlertDialog(
                 onDismissRequest = { deviceToDelete = null },
                 title = {
-                    Text("Delete Client Device?", color = TextPrimary, fontWeight = FontWeight.Bold)
+                    Text("Remove Node '${dev.name}'?", color = TextPrimary, fontWeight = FontWeight.Bold)
                 },
                 text = {
                     Text(
-                        "Are you sure you want to remove '${dev.name}' (${dev.deviceType.uppercase()}) from your PhotoVault? Its uploaded files will be preserved on the server.",
+                        "Are you sure you want to revoke '${dev.name}' (${dev.deviceType.uppercase()})? Files uploaded by this node will remain securely preserved on your vault server.",
                         color = TextSecondary,
-                        fontSize = 14.sp
+                        fontSize = 13.sp
                     )
                 },
                 confirmButton = {
@@ -314,9 +336,10 @@ fun DevicesScreen(
                             deleteDevice(dev)
                             deviceToDelete = null
                         },
-                        colors = ButtonDefaults.buttonColors(containerColor = DangerRed)
+                        colors = ButtonDefaults.buttonColors(containerColor = DangerRed),
+                        shape = RoundedCornerShape(10.dp)
                     ) {
-                        Text("Delete Device", color = Color.White, fontWeight = FontWeight.Bold)
+                        Text("Revoke Device", color = Color.White, fontWeight = FontWeight.Bold)
                     }
                 },
                 dismissButton = {
@@ -350,9 +373,9 @@ private fun DeviceCard(
         else -> Icons.Default.Computer
     }
 
-    Card(
-        colors = CardDefaults.cardColors(containerColor = DarkSurfaceVariant),
-        shape = RoundedCornerShape(16.dp),
+    LiquidGlassCard(
+        glowAccent = if (isCurrentDevice) AccentGold else null,
+        shape = RoundedCornerShape(22.dp),
         modifier = Modifier.fillMaxWidth()
     ) {
         Column(
@@ -368,10 +391,12 @@ private fun DeviceCard(
             ) {
                 Box(
                     modifier = Modifier
-                        .size(42.dp)
-                        .background(
-                            if (isCurrentDevice) AccentGold.copy(alpha = 0.2f) else DarkBackground,
-                            CircleShape
+                        .size(44.dp)
+                        .liquidGlass(
+                            shape = CircleShape,
+                            backgroundColor = if (isCurrentDevice) AccentGoldGlow else Color(0x66181C28),
+                            borderColor = if (isCurrentDevice) AccentGold else Color.White,
+                            borderAlphaTop = 0.30f
                         ),
                     contentAlignment = Alignment.Center
                 ) {
@@ -397,7 +422,7 @@ private fun DeviceCard(
                         if (isCurrentDevice) {
                             Box(
                                 modifier = Modifier
-                                    .background(AccentGold.copy(alpha = 0.2f), RoundedCornerShape(4.dp))
+                                    .background(AccentGoldGlow, RoundedCornerShape(6.dp))
                                     .padding(horizontal = 6.dp, vertical = 2.dp)
                             ) {
                                 Text(
@@ -411,13 +436,13 @@ private fun DeviceCard(
                     }
 
                     Text(
-                        text = "Type: ${device.deviceType.uppercase()} • $mediaCount files",
+                        text = "Type: ${device.deviceType.uppercase()} • $mediaCount files in vault",
                         color = TextMuted,
                         fontSize = 12.sp
                     )
                 }
 
-                // Delete Device Button (for non-admin and non-current devices)
+                // Delete Device Button
                 if (!isAdmin && !isCurrentDevice) {
                     IconButton(
                         onClick = onDeleteDevice,
@@ -426,7 +451,7 @@ private fun DeviceCard(
                         Icon(
                             imageVector = Icons.Default.DeleteOutline,
                             contentDescription = "Remove Device",
-                            tint = DangerRed.copy(alpha = 0.8f),
+                            tint = DangerRed.copy(alpha = 0.85f),
                             modifier = Modifier.size(20.dp)
                         )
                     }
@@ -460,15 +485,16 @@ private fun DeviceCard(
                 OutlinedButton(
                     onClick = onViewPhotos,
                     modifier = Modifier.weight(1f),
-                    shape = RoundedCornerShape(10.dp),
-                    colors = ButtonDefaults.outlinedButtonColors(contentColor = TextPrimary)
+                    shape = RoundedCornerShape(12.dp),
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = TextPrimary),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.15f))
                 ) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
                         Icon(Icons.Default.PhotoLibrary, contentDescription = null, modifier = Modifier.size(16.dp), tint = AccentGold)
-                        Text("View Photos", fontSize = 12.sp)
+                        Text("View Photos", fontSize = 12.sp, fontWeight = FontWeight.Medium)
                     }
                 }
 
@@ -476,11 +502,11 @@ private fun DeviceCard(
                     onClick = onDownloadAll,
                     enabled = !isDownloading && mediaCount > 0,
                     modifier = Modifier.weight(1f),
-                    shape = RoundedCornerShape(10.dp),
+                    shape = RoundedCornerShape(12.dp),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = DarkBackground,
+                        containerColor = Color(0xD9101420),
                         contentColor = TextPrimary,
-                        disabledContainerColor = DarkBackground.copy(alpha = 0.5f),
+                        disabledContainerColor = Color(0x66101420),
                         disabledContentColor = TextMuted
                     )
                 ) {
@@ -489,7 +515,7 @@ private fun DeviceCard(
                         horizontalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
                         Icon(Icons.Default.CloudDownload, contentDescription = null, modifier = Modifier.size(16.dp), tint = AccentGold)
-                        Text(if (isDownloading) "Downloading..." else "Download All", fontSize = 12.sp)
+                        Text(if (isDownloading) "Downloading..." else "Download All", fontSize = 12.sp, fontWeight = FontWeight.Medium)
                     }
                 }
             }

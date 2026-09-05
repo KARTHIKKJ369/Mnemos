@@ -1,20 +1,29 @@
 package com.photovault.ui.screens.settings
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowForwardIos
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.filled.CleaningServices
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Dns
 import androidx.compose.material.icons.filled.Storage
 import androidx.compose.material3.Button
@@ -38,6 +47,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
@@ -47,7 +57,10 @@ import androidx.compose.ui.unit.sp
 import com.photovault.PhotoVaultApplication
 import com.photovault.data.model.HealthResponse
 import com.photovault.ui.components.HapticHelper
+import com.photovault.ui.components.LiquidGlassCard
+import com.photovault.ui.components.liquidGlass
 import com.photovault.ui.theme.AccentGold
+import com.photovault.ui.theme.AccentGoldGlow
 import com.photovault.ui.theme.DarkBackground
 import com.photovault.ui.theme.DarkSurfaceVariant
 import com.photovault.ui.theme.DangerRed
@@ -60,7 +73,8 @@ import java.io.File
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(
-    onLogout: () -> Unit
+    onLogout: () -> Unit,
+    onOpenTrash: () -> Unit = {}
 ) {
     val app = PhotoVaultApplication.instance
     val context = LocalContext.current
@@ -87,47 +101,58 @@ fun SettingsScreen(
         }
     }
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = {
-                    Text(
-                        text = "Settings",
-                        fontSize = 20.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = TextPrimary
-                    )
-                },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = DarkBackground)
-            )
-        },
-        containerColor = DarkBackground
-    ) { paddingValues ->
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(DarkBackground)
+    ) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(paddingValues)
                 .verticalScroll(rememberScrollState())
-                .padding(20.dp),
-            verticalArrangement = Arrangement.spacedBy(20.dp)
+                .padding(horizontal = 16.dp)
+                .padding(bottom = 90.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // Server Connection Info Card
-            Card(
-                colors = CardDefaults.cardColors(containerColor = DarkSurfaceVariant),
-                shape = RoundedCornerShape(16.dp),
+            // Liquid Glass Top Bar
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .statusBarsPadding()
+                    .padding(vertical = 8.dp)
+            ) {
+                Text(
+                    text = "Vault Settings",
+                    fontSize = 22.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = TextPrimary
+                )
+            }
+
+            // Server Connection Liquid Glass Card
+            LiquidGlassCard(
+                glowAccent = AccentGold,
+                shape = RoundedCornerShape(22.dp),
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(20.dp),
+                        .padding(18.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
-                        Icon(Icons.Default.Dns, contentDescription = null, tint = AccentGold)
+                        Box(
+                            modifier = Modifier
+                                .size(36.dp)
+                                .liquidGlass(shape = CircleShape, backgroundColor = AccentGoldGlow),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(Icons.Default.Dns, contentDescription = null, tint = AccentGold, modifier = Modifier.size(18.dp))
+                        }
                         Text(
                             text = "Server Connection",
                             color = TextPrimary,
@@ -140,29 +165,88 @@ fun SettingsScreen(
                     SettingsRow(label = "Device ID", value = deviceId.take(16) + "…")
                     SettingsRow(
                         label = "Vault Status",
-                        value = if (healthData?.database == "ok") "Connected & Healthy ✓" else "Checking..."
+                        value = if (healthData?.database == "ok") "Connected & Healthy" else "Checking..."
                     )
                 }
             }
 
-            // Server Telemetry Card
+            // Trash & Deleted Items Liquid Glass Card
+            LiquidGlassCard(
+                glowAccent = DangerRed,
+                shape = RoundedCornerShape(22.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable {
+                        HapticHelper.performClick(view)
+                        onOpenTrash()
+                    }
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(18.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(36.dp)
+                                .liquidGlass(shape = CircleShape, backgroundColor = Color(0x33EF4444)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(Icons.Default.Delete, contentDescription = null, tint = DangerRed, modifier = Modifier.size(18.dp))
+                        }
+                        Column {
+                            Text(
+                                text = "Trash & Deleted Items",
+                                color = TextPrimary,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 16.sp
+                            )
+                            Text(
+                                text = "Restore or permanently erase media",
+                                color = TextMuted,
+                                fontSize = 12.sp
+                            )
+                        }
+                    }
+                    Icon(
+                        Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                        contentDescription = "Open Trash",
+                        tint = TextSecondary,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+            }
+
+            // Server Telemetry Liquid Glass Card
             healthData?.let { health ->
-                Card(
-                    colors = CardDefaults.cardColors(containerColor = DarkSurfaceVariant),
-                    shape = RoundedCornerShape(16.dp),
+                LiquidGlassCard(
+                    shape = RoundedCornerShape(22.dp),
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(20.dp),
+                            .padding(18.dp),
                         verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(10.dp)
                         ) {
-                            Icon(Icons.Default.Storage, contentDescription = null, tint = AccentGold)
+                            Box(
+                                modifier = Modifier
+                                    .size(36.dp)
+                                    .liquidGlass(shape = CircleShape, backgroundColor = Color(0x3338BDF8)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(Icons.Default.Storage, contentDescription = null, tint = Color(0xFF38BDF8), modifier = Modifier.size(18.dp))
+                            }
                             Text(
                                 text = "Vault Telemetry",
                                 color = TextPrimary,
@@ -174,7 +258,7 @@ fun SettingsScreen(
                         SettingsRow(label = "Total Photos", value = "${health.totalPhotos}")
                         SettingsRow(label = "Total Videos", value = "${health.totalVideos}")
                         SettingsRow(
-                            label = "Vault Size",
+                            label = "Vault Storage",
                             value = "${(health.vaultBytes / (1024 * 1024 * 1024.0)).format(2)} GB"
                         )
                         SettingsRow(
@@ -185,23 +269,29 @@ fun SettingsScreen(
                 }
             }
 
-            // Cache Management Card
-            Card(
-                colors = CardDefaults.cardColors(containerColor = DarkSurfaceVariant),
-                shape = RoundedCornerShape(16.dp),
+            // Cache Management Liquid Glass Card
+            LiquidGlassCard(
+                shape = RoundedCornerShape(22.dp),
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(20.dp),
+                        .padding(18.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
-                        Icon(Icons.Default.CleaningServices, contentDescription = null, tint = AccentGold)
+                        Box(
+                            modifier = Modifier
+                                .size(36.dp)
+                                .liquidGlass(shape = CircleShape, backgroundColor = Color(0x33A855F7)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(Icons.Default.CleaningServices, contentDescription = null, tint = Color(0xFFA855F7), modifier = Modifier.size(18.dp))
+                        }
                         Text(
                             text = "Offline Media Cache",
                             color = TextPrimary,
@@ -221,12 +311,12 @@ fun SettingsScreen(
                         },
                         modifier = Modifier.fillMaxWidth(),
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = DarkBackground,
+                            containerColor = Color(0xD9101420),
                             contentColor = TextPrimary
                         ),
-                        shape = RoundedCornerShape(10.dp)
+                        shape = RoundedCornerShape(12.dp)
                     ) {
-                        Text("Clear Offline Cache")
+                        Text("Clear Offline Cache", fontWeight = FontWeight.Medium)
                     }
                 }
             }
@@ -240,13 +330,15 @@ fun SettingsScreen(
                 },
                 modifier = Modifier.fillMaxWidth(),
                 colors = ButtonDefaults.outlinedButtonColors(contentColor = DangerRed),
-                shape = RoundedCornerShape(12.dp)
+                border = androidx.compose.foundation.BorderStroke(1.dp, DangerRed.copy(alpha = 0.4f)),
+                shape = RoundedCornerShape(14.dp)
             ) {
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.padding(vertical = 4.dp)
                 ) {
-                    Icon(Icons.AutoMirrored.Filled.Logout, contentDescription = null, tint = DangerRed)
+                    Icon(Icons.AutoMirrored.Filled.Logout, contentDescription = null, tint = DangerRed, modifier = Modifier.size(18.dp))
                     Text("Disconnect & Log Out", fontWeight = FontWeight.SemiBold)
                 }
             }

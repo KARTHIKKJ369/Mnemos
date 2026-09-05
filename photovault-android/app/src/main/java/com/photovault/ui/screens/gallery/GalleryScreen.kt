@@ -25,6 +25,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
@@ -33,27 +34,22 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Sort
 import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Checklist
-import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.CloudDownload
 import androidx.compose.material.icons.filled.Computer
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Devices
 import androidx.compose.material.icons.filled.Favorite
-import androidx.compose.material.icons.filled.FavoriteBorder
-import androidx.compose.material.icons.filled.FilterAlt
 import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.Laptop
 import androidx.compose.material.icons.filled.PhoneAndroid
 import androidx.compose.material.icons.filled.PhoneIphone
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Public
-import androidx.compose.material.icons.filled.RadioButtonUnchecked
 import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material.icons.filled.SelectAll
 import androidx.compose.material.icons.filled.Sort
 import androidx.compose.material.icons.filled.ViewModule
 import androidx.compose.material3.Button
@@ -62,17 +58,11 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -98,15 +88,18 @@ import coil.request.ImageRequest
 import com.photovault.PhotoVaultApplication
 import com.photovault.data.model.DeviceItem
 import com.photovault.data.model.MediaItem
+import com.photovault.ui.components.GlassSurfaceBase
+import com.photovault.ui.components.GlassSurfaceElevated
 import com.photovault.ui.components.HapticHelper
+import com.photovault.ui.components.LiquidGlassCard
+import com.photovault.ui.components.LiquidGlassPill
+import com.photovault.ui.components.liquidGlass
 import com.photovault.ui.theme.AccentGold
 import com.photovault.ui.theme.AccentGoldGlow
-import com.photovault.ui.theme.BorderSubtle
 import com.photovault.ui.theme.DarkBackground
 import com.photovault.ui.theme.DarkSurfaceOverlay
 import com.photovault.ui.theme.DarkSurfaceVariant
 import com.photovault.ui.theme.DangerRed
-import com.photovault.ui.theme.EmeraldGreen
 import com.photovault.ui.theme.TextMuted
 import com.photovault.ui.theme.TextPrimary
 import com.photovault.ui.theme.TextSecondary
@@ -262,53 +255,43 @@ fun GalleryScreen(
         }
     }
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(DarkBackground)
+    ) {
+        Column(modifier = Modifier.fillMaxSize()) {
+            // Liquid Glass Top Bar (with statusBarsPadding)
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .statusBarsPadding()
+                    .padding(horizontal = 16.dp, vertical = 8.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
                     if (isSelectionMode) {
-                        Text(
-                            text = "${selectedFileIds.size} Selected",
-                            fontSize = 18.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = AccentGold
-                        )
-                    } else {
-                        Column {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            IconButton(onClick = {
+                                isSelectionMode = false
+                                selectedFileIds = emptySet()
+                            }) {
+                                Icon(Icons.Default.Close, contentDescription = "Cancel", tint = TextPrimary)
+                            }
                             Text(
-                                text = "Library",
-                                fontSize = 20.sp,
+                                text = "${selectedFileIds.size} Selected",
+                                fontSize = 18.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = TextPrimary
-                            )
-                            Text(
-                                text = "${mediaList.size} items • ${currentSort.label}" + when {
-                                    selectedDeviceFilter == "other_devices" -> " • Other Devices Only"
-                                    selectedDeviceFilter.isNotEmpty() -> {
-                                        val devName = devices.find { it.id == selectedDeviceFilter }?.name ?: "Filtered"
-                                        " • $devName"
-                                    }
-                                    else -> ""
-                                },
-                                fontSize = 11.sp,
-                                color = TextMuted
+                                color = AccentGold
                             )
                         }
-                    }
-                },
-                navigationIcon = {
-                    if (isSelectionMode) {
-                        IconButton(onClick = {
-                            isSelectionMode = false
-                            selectedFileIds = emptySet()
-                        }) {
-                            Icon(Icons.Default.Close, contentDescription = "Cancel Selection", tint = TextPrimary)
-                        }
-                    }
-                },
-                actions = {
-                    if (isSelectionMode) {
-                        // Select All / Deselect All
+
                         TextButton(onClick = {
                             HapticHelper.performSelection(view)
                             selectedFileIds = if (selectedFileIds.size == mediaList.size) {
@@ -325,325 +308,358 @@ fun GalleryScreen(
                             )
                         }
                     } else {
-                        // Enter Selection Mode Button
-                        IconButton(onClick = {
-                            HapticHelper.performClick(view)
-                            isSelectionMode = true
-                        }) {
-                            Icon(
-                                imageVector = Icons.Default.Checklist,
-                                contentDescription = "Select Media",
-                                tint = AccentGold
-                            )
-                        }
-
-                        // Sort Sheet Trigger
-                        IconButton(onClick = {
-                            HapticHelper.performClick(view)
-                            showSortSheet = true
-                        }) {
-                            Icon(
-                                imageVector = Icons.Default.Sort,
-                                contentDescription = "Sort Options",
-                                tint = TextSecondary
-                            )
-                        }
-
-                        // Density switcher (2 -> 3 -> 4 -> 5 -> 2)
-                        IconButton(onClick = {
-                            HapticHelper.performSelection(view)
-                            val nextCols = if (columns >= 5) 2 else columns + 1
-                            app.preferenceStore.setGridColumns(nextCols)
-                        }) {
-                            Icon(
-                                imageVector = Icons.Default.ViewModule,
-                                contentDescription = "Grid Density",
-                                tint = TextSecondary
-                            )
-                        }
-
-                        // Refresh
-                        IconButton(onClick = {
-                            HapticHelper.performClick(view)
-                            loadData()
-                        }) {
-                            Icon(
-                                imageVector = Icons.Default.Refresh,
-                                contentDescription = "Refresh",
-                                tint = TextSecondary
-                            )
-                        }
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = DarkBackground
-                )
-            )
-        },
-        containerColor = DarkBackground
-    ) { paddingValues ->
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
-        ) {
-            Column(modifier = Modifier.fillMaxSize()) {
-                // Row 1: Media Type Filter Chips
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .horizontalScroll(rememberScrollState())
-                        .padding(horizontal = 12.dp, vertical = 4.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    listOf(
-                        "all" to "All Media",
-                        "photos" to "Photos",
-                        "videos" to "Videos",
-                        "favorites" to "Favorites"
-                    ).forEach { (key, label) ->
-                        val isSelected = selectedTypeFilter == key
-                        FilterChip(
-                            selected = isSelected,
-                            onClick = {
-                                HapticHelper.performClick(view)
-                                selectedTypeFilter = key
-                            },
-                            label = { Text(label, fontSize = 12.sp, fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal) },
-                            colors = FilterChipDefaults.filterChipColors(
-                                selectedContainerColor = AccentGold,
-                                selectedLabelColor = Color.Black,
-                                containerColor = DarkSurfaceVariant,
-                                labelColor = TextSecondary
-                            ),
-                            border = null,
-                            shape = CircleShape
-                        )
-                    }
-                }
-
-                // Row 2: Device Source Filter Chips (All, Other Devices Only, This Phone, Specific Nodes)
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .horizontalScroll(rememberScrollState())
-                        .padding(horizontal = 12.dp, vertical = 2.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    // All Devices Chip
-                    FilterChip(
-                        selected = selectedDeviceFilter.isEmpty(),
-                        onClick = {
-                            HapticHelper.performClick(view)
-                            selectedDeviceFilter = ""
-                        },
-                        leadingIcon = {
-                            Icon(Icons.Default.Devices, contentDescription = null, modifier = Modifier.size(14.dp))
-                        },
-                        label = { Text("All Devices", fontSize = 11.sp) },
-                        colors = FilterChipDefaults.filterChipColors(
-                            selectedContainerColor = TextPrimary,
-                            selectedLabelColor = Color.Black,
-                            selectedLeadingIconColor = Color.Black,
-                            containerColor = DarkSurfaceVariant.copy(alpha = 0.6f),
-                            labelColor = TextMuted,
-                            iconColor = TextMuted
-                        ),
-                        border = null,
-                        shape = RoundedCornerShape(8.dp)
-                    )
-
-                    // Other Devices Only (Quick Filter for cross-device sync)
-                    FilterChip(
-                        selected = selectedDeviceFilter == "other_devices",
-                        onClick = {
-                            HapticHelper.performClick(view)
-                            selectedDeviceFilter = if (selectedDeviceFilter == "other_devices") "" else "other_devices"
-                        },
-                        leadingIcon = {
-                            Icon(Icons.Default.Public, contentDescription = null, modifier = Modifier.size(14.dp))
-                        },
-                        label = { Text("Other Devices Only ⚡", fontSize = 11.sp, fontWeight = FontWeight.SemiBold) },
-                        colors = FilterChipDefaults.filterChipColors(
-                            selectedContainerColor = AccentGold,
-                            selectedLabelColor = Color.Black,
-                            selectedLeadingIconColor = Color.Black,
-                            containerColor = DarkSurfaceVariant.copy(alpha = 0.6f),
-                            labelColor = AccentGold,
-                            iconColor = AccentGold
-                        ),
-                        border = null,
-                        shape = RoundedCornerShape(8.dp)
-                    )
-
-                    // Individual Devices
-                    devices.forEach { dev ->
-                        val isSelected = selectedDeviceFilter == dev.id
-                        val isThisPhone = dev.id == currentDeviceId
-                        val devIcon = when (dev.deviceType.lowercase()) {
-                            "mac", "desktop" -> Icons.Default.Laptop
-                            "ios" -> Icons.Default.PhoneIphone
-                            "android" -> Icons.Default.PhoneAndroid
-                            "web" -> Icons.Default.Language
-                            else -> Icons.Default.Computer
-                        }
-
-                        FilterChip(
-                            selected = isSelected,
-                            onClick = {
-                                HapticHelper.performClick(view)
-                                selectedDeviceFilter = if (isSelected) "" else dev.id
-                            },
-                            leadingIcon = {
-                                Icon(devIcon, contentDescription = null, modifier = Modifier.size(14.dp))
-                            },
-                            label = {
-                                Text(
-                                    if (isThisPhone) "${dev.name} (This Phone)" else dev.name,
-                                    fontSize = 11.sp
-                                )
-                            },
-                            colors = FilterChipDefaults.filterChipColors(
-                                selectedContainerColor = AccentGold,
-                                selectedLabelColor = Color.Black,
-                                selectedLeadingIconColor = Color.Black,
-                                containerColor = DarkSurfaceVariant.copy(alpha = 0.6f),
-                                labelColor = TextMuted,
-                                iconColor = TextMuted
-                            ),
-                            border = null,
-                            shape = RoundedCornerShape(8.dp)
-                        )
-                    }
-                }
-
-                if (isLoading && mediaList.isEmpty()) {
-                    Box(
-                        modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        CircularProgressIndicator(color = AccentGold)
-                    }
-                } else if (mediaList.isEmpty()) {
-                    Box(
-                        modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Column(
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            Text("No media found in vault", color = TextPrimary, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                        Column {
                             Text(
-                                if (selectedDeviceFilter.isNotEmpty()) "No files match the selected filter"
-                                else "Upload or backup photos to populate library",
-                                color = TextMuted,
-                                fontSize = 13.sp
+                                text = "Library",
+                                fontSize = 22.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = TextPrimary
+                            )
+                            Text(
+                                text = "${mediaList.size} items • ${currentSort.label}" + when {
+                                    selectedDeviceFilter == "other_devices" -> " • Other Devices"
+                                    selectedDeviceFilter.isNotEmpty() -> {
+                                        val devName = devices.find { it.id == selectedDeviceFilter }?.name ?: "Filtered"
+                                        " • $devName"
+                                    }
+                                    else -> ""
+                                },
+                                fontSize = 11.sp,
+                                color = TextMuted
                             )
                         }
+
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(2.dp)
+                        ) {
+                            // Selection Mode Trigger
+                            IconButton(onClick = {
+                                HapticHelper.performClick(view)
+                                isSelectionMode = true
+                            }) {
+                                Icon(
+                                    imageVector = Icons.Default.Checklist,
+                                    contentDescription = "Select Media",
+                                    tint = AccentGold,
+                                    modifier = Modifier.size(22.dp)
+                                )
+                            }
+
+                            // Sort Options
+                            IconButton(onClick = {
+                                HapticHelper.performClick(view)
+                                showSortSheet = true
+                            }) {
+                                Icon(
+                                    imageVector = Icons.AutoMirrored.Filled.Sort,
+                                    contentDescription = "Sort Options",
+                                    tint = TextSecondary,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+
+                            // Grid Density
+                            IconButton(onClick = {
+                                HapticHelper.performSelection(view)
+                                val nextCols = if (columns >= 5) 2 else columns + 1
+                                app.preferenceStore.setGridColumns(nextCols)
+                            }) {
+                                Icon(
+                                    imageVector = Icons.Default.ViewModule,
+                                    contentDescription = "Grid Density",
+                                    tint = TextSecondary,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+
+                            // Refresh
+                            IconButton(onClick = {
+                                HapticHelper.performClick(view)
+                                loadData()
+                            }) {
+                                Icon(
+                                    imageVector = Icons.Default.Refresh,
+                                    contentDescription = "Refresh",
+                                    tint = TextSecondary,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+                        }
                     }
-                } else {
-                    LazyVerticalGrid(
-                        columns = GridCells.Fixed(columns),
-                        contentPadding = PaddingValues(
-                            start = 1.dp,
-                            end = 1.dp,
-                            top = 1.dp,
-                            bottom = if (isSelectionMode) 100.dp else 1.dp
-                        ),
-                        horizontalArrangement = Arrangement.spacedBy(1.dp),
-                        verticalArrangement = Arrangement.spacedBy(1.dp),
-                        modifier = Modifier.fillMaxSize()
+                }
+            }
+
+            // Row 1: Media Type Liquid Glass Pills
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .horizontalScroll(rememberScrollState())
+                    .padding(horizontal = 14.dp, vertical = 4.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                listOf(
+                    "all" to "All Media",
+                    "photos" to "Photos",
+                    "videos" to "Videos",
+                    "favorites" to "Favorites"
+                ).forEach { (key, label) ->
+                    val isSelected = selectedTypeFilter == key
+                    LiquidGlassPill(
+                        glowAccent = if (isSelected) AccentGold else null,
+                        backgroundColor = if (isSelected) AccentGoldGlow else GlassSurfaceBase,
+                        onClick = {
+                            HapticHelper.performClick(view)
+                            selectedTypeFilter = key
+                        }
                     ) {
-                        items(mediaList, key = { it.fileId }) { item ->
-                            val isSelected = selectedFileIds.contains(item.fileId)
-                            GalleryTile(
-                                media = item,
-                                isSelectionMode = isSelectionMode,
-                                isSelected = isSelected,
-                                onClick = {
-                                    if (isSelectionMode) {
-                                        toggleSelection(item.fileId)
-                                    } else {
-                                        HapticHelper.performClick(view)
-                                        onMediaSelected(item.fileId)
-                                    }
-                                },
-                                onLongClick = {
-                                    if (!isSelectionMode) {
-                                        isSelectionMode = true
-                                        toggleSelection(item.fileId)
-                                    }
-                                }
+                        Text(
+                            text = label,
+                            fontSize = 12.sp,
+                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                            color = if (isSelected) AccentGold else TextSecondary,
+                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 7.dp)
+                        )
+                    }
+                }
+            }
+
+            // Row 2: Device Source Liquid Glass Pills (All, Other Devices Only, This Phone, Specific Nodes)
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .horizontalScroll(rememberScrollState())
+                    .padding(horizontal = 14.dp, vertical = 4.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // All Devices Chip
+                val isAllSelected = selectedDeviceFilter.isEmpty()
+                LiquidGlassPill(
+                    glowAccent = if (isAllSelected) TextPrimary else null,
+                    backgroundColor = if (isAllSelected) Color.White.copy(alpha = 0.12f) else GlassSurfaceBase,
+                    onClick = {
+                        HapticHelper.performClick(view)
+                        selectedDeviceFilter = ""
+                    }
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+                    ) {
+                        Icon(
+                            Icons.Default.Devices,
+                            contentDescription = null,
+                            modifier = Modifier.size(13.dp),
+                            tint = if (isAllSelected) TextPrimary else TextMuted
+                        )
+                        Text(
+                            text = "All Nodes",
+                            fontSize = 11.sp,
+                            fontWeight = if (isAllSelected) FontWeight.Bold else FontWeight.Normal,
+                            color = if (isAllSelected) TextPrimary else TextMuted
+                        )
+                    }
+                }
+
+                // Other Devices Only (Quick Filter for cross-device sync)
+                val isOtherSelected = selectedDeviceFilter == "other_devices"
+                LiquidGlassPill(
+                    glowAccent = if (isOtherSelected) AccentGold else null,
+                    backgroundColor = if (isOtherSelected) AccentGoldGlow else GlassSurfaceBase,
+                    onClick = {
+                        HapticHelper.performClick(view)
+                        selectedDeviceFilter = if (selectedDeviceFilter == "other_devices") "" else "other_devices"
+                    }
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+                    ) {
+                        Icon(
+                            Icons.Default.Public,
+                            contentDescription = null,
+                            modifier = Modifier.size(13.dp),
+                            tint = AccentGold
+                        )
+                        Text(
+                            text = "Other Devices",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = AccentGold
+                        )
+                    }
+                }
+
+                // Individual Devices
+                devices.forEach { dev ->
+                    val isSelected = selectedDeviceFilter == dev.id
+                    val isThisPhone = dev.id == currentDeviceId
+                    val devIcon = when (dev.deviceType.lowercase()) {
+                        "mac", "desktop" -> Icons.Default.Laptop
+                        "ios" -> Icons.Default.PhoneIphone
+                        "android" -> Icons.Default.PhoneAndroid
+                        "web" -> Icons.Default.Language
+                        else -> Icons.Default.Computer
+                    }
+
+                    LiquidGlassPill(
+                        glowAccent = if (isSelected) AccentGold else null,
+                        backgroundColor = if (isSelected) AccentGoldGlow else GlassSurfaceBase,
+                        onClick = {
+                            HapticHelper.performClick(view)
+                            selectedDeviceFilter = if (isSelected) "" else dev.id
+                        }
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+                        ) {
+                            Icon(
+                                devIcon,
+                                contentDescription = null,
+                                modifier = Modifier.size(13.dp),
+                                tint = if (isSelected) AccentGold else TextMuted
+                            )
+                            Text(
+                                text = if (isThisPhone) "${dev.name} (This Phone)" else dev.name,
+                                fontSize = 11.sp,
+                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                color = if (isSelected) AccentGold else TextMuted
                             )
                         }
                     }
                 }
             }
 
-            // Bottom Floating Batch Actions Bar (Thumb Zone)
-            AnimatedVisibility(
-                visible = isSelectionMode && selectedFileIds.isNotEmpty(),
-                enter = fadeIn() + slideInVertically { it },
-                exit = fadeOut() + slideOutVertically { it },
-                modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .navigationBarsPadding()
-                    .padding(bottom = 16.dp, start = 16.dp, end = 16.dp)
-            ) {
-                Card(
-                    colors = CardDefaults.cardColors(containerColor = DarkSurfaceOverlay),
-                    shape = RoundedCornerShape(20.dp),
-                    border = androidx.compose.foundation.BorderStroke(1.dp, BorderSubtle),
-                    modifier = Modifier.fillMaxWidth()
+            if (isLoading && mediaList.isEmpty()) {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
                 ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 10.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
+                    CircularProgressIndicator(color = AccentGold)
+                }
+            } else if (mediaList.isEmpty()) {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        // Download Batch Button
-                        Button(
-                            onClick = { batchDownloadSelected() },
-                            enabled = !isBatchDownloading,
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = AccentGold,
-                                contentColor = Color.Black
-                            ),
-                            shape = RoundedCornerShape(12.dp)
-                        ) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(6.dp)
-                            ) {
-                                if (isBatchDownloading) {
-                                    CircularProgressIndicator(
-                                        modifier = Modifier.size(16.dp),
-                                        strokeWidth = 2.dp,
-                                        color = Color.Black
-                                    )
-                                    batchProgress?.let { (done, total) ->
-                                        Text("$done/$total", fontWeight = FontWeight.Bold, fontSize = 12.sp)
-                                    }
+                        Text("No media in vault", color = TextPrimary, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                        Text(
+                            if (selectedDeviceFilter.isNotEmpty()) "No files match the selected filter"
+                            else "Upload or backup photos to populate library",
+                            color = TextMuted,
+                            fontSize = 13.sp
+                        )
+                    }
+                }
+            } else {
+                LazyVerticalGrid(
+                    columns = GridCells.Fixed(columns),
+                    contentPadding = PaddingValues(
+                        start = 1.dp,
+                        end = 1.dp,
+                        top = 6.dp,
+                        bottom = if (isSelectionMode) 100.dp else 12.dp
+                    ),
+                    horizontalArrangement = Arrangement.spacedBy(1.5.dp),
+                    verticalArrangement = Arrangement.spacedBy(1.5.dp),
+                    modifier = Modifier.fillMaxSize()
+                ) {
+                    items(mediaList, key = { it.fileId }) { item ->
+                        val isSelected = selectedFileIds.contains(item.fileId)
+                        GalleryTile(
+                            media = item,
+                            isSelectionMode = isSelectionMode,
+                            isSelected = isSelected,
+                            onClick = {
+                                if (isSelectionMode) {
+                                    toggleSelection(item.fileId)
                                 } else {
-                                    Icon(Icons.Default.CloudDownload, contentDescription = null, modifier = Modifier.size(18.dp))
-                                    Text("Download (${selectedFileIds.size})", fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                                    HapticHelper.performClick(view)
+                                    onMediaSelected(item.fileId)
+                                }
+                            },
+                            onLongClick = {
+                                if (!isSelectionMode) {
+                                    isSelectionMode = true
+                                    toggleSelection(item.fileId)
                                 }
                             }
-                        }
+                        )
+                    }
+                }
+            }
+        }
 
-                        // Favorite Batch
-                        IconButton(onClick = { batchFavoriteSelected(true) }) {
-                            Icon(Icons.Default.Favorite, contentDescription = "Favorite All", tint = AccentGold, modifier = Modifier.size(20.dp))
+        // Bottom Floating Liquid Glass Batch Actions Bar (Thumb Zone)
+        AnimatedVisibility(
+            visible = isSelectionMode && selectedFileIds.isNotEmpty(),
+            enter = fadeIn() + slideInVertically { it },
+            exit = fadeOut() + slideOutVertically { it },
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .navigationBarsPadding()
+                .padding(bottom = 16.dp, start = 16.dp, end = 16.dp)
+        ) {
+            LiquidGlassCard(
+                glowAccent = AccentGold,
+                backgroundColor = Color(0xF2161A26),
+                shape = RoundedCornerShape(26.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 10.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    // Download Batch Button
+                    Button(
+                        onClick = { batchDownloadSelected() },
+                        enabled = !isBatchDownloading,
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = AccentGold,
+                            contentColor = Color.Black
+                        ),
+                        shape = RoundedCornerShape(14.dp)
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            if (isBatchDownloading) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(16.dp),
+                                    strokeWidth = 2.dp,
+                                    color = Color.Black
+                                )
+                                batchProgress?.let { (done, total) ->
+                                    Text("$done/$total", fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                                }
+                            } else {
+                                Icon(Icons.Default.CloudDownload, contentDescription = null, modifier = Modifier.size(18.dp))
+                                Text("Download (${selectedFileIds.size})", fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                            }
                         }
+                    }
 
-                        // Delete Batch
-                        IconButton(onClick = { batchDeleteSelected() }) {
-                            Icon(Icons.Default.Delete, contentDescription = "Delete All", tint = DangerRed, modifier = Modifier.size(20.dp))
-                        }
+                    // Favorite Batch
+                    IconButton(onClick = { batchFavoriteSelected(true) }) {
+                        Icon(Icons.Default.Favorite, contentDescription = "Favorite All", tint = AccentGold, modifier = Modifier.size(20.dp))
+                    }
+
+                    // Delete Batch
+                    IconButton(onClick = { batchDeleteSelected() }) {
+                        Icon(Icons.Default.Delete, contentDescription = "Delete All", tint = DangerRed, modifier = Modifier.size(20.dp))
                     }
                 }
             }
@@ -681,16 +697,15 @@ fun GalleryScreen(
 
                     SortOption.entries.forEach { option ->
                         val isSelected = currentSort == option
-                        Card(
+                        LiquidGlassCard(
+                            glowAccent = if (isSelected) AccentGold else null,
+                            backgroundColor = if (isSelected) AccentGoldGlow else Color(0x99181C28),
+                            shape = RoundedCornerShape(14.dp),
                             onClick = {
                                 HapticHelper.performSelection(view)
                                 currentSort = option
                                 showSortSheet = false
                             },
-                            colors = CardDefaults.cardColors(
-                                containerColor = if (isSelected) AccentGold.copy(alpha = 0.15f) else DarkBackground
-                            ),
-                            shape = RoundedCornerShape(12.dp),
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             Row(
@@ -749,7 +764,7 @@ fun GalleryTile(
                 onLongClick = onLongClick
             )
             .then(
-                if (isSelected) Modifier.border(2.dp, AccentGold) else Modifier
+                if (isSelected) Modifier.border(2.5.dp, AccentGold) else Modifier
             )
     ) {
         AsyncImage(
@@ -769,7 +784,7 @@ fun GalleryTile(
                 modifier = Modifier
                     .align(Alignment.BottomStart)
                     .padding(6.dp)
-                    .background(DarkSurfaceOverlay, RoundedCornerShape(4.dp))
+                    .background(Color(0xCC000000), RoundedCornerShape(6.dp))
                     .padding(horizontal = 6.dp, vertical = 2.dp)
             ) {
                 Row(
@@ -803,7 +818,7 @@ fun GalleryTile(
                     modifier = Modifier
                         .align(Alignment.TopEnd)
                         .padding(4.dp)
-                        .background(Color.Black.copy(alpha = 0.65f), RoundedCornerShape(4.dp))
+                        .background(Color(0xB30B0E17), RoundedCornerShape(4.dp))
                         .padding(horizontal = 5.dp, vertical = 2.dp)
                 ) {
                     Text(
@@ -824,7 +839,8 @@ fun GalleryTile(
                     .align(Alignment.TopEnd)
                     .padding(6.dp)
                     .size(22.dp)
-                    .background(if (isSelected) AccentGold else Color.Black.copy(alpha = 0.6f), CircleShape),
+                    .background(if (isSelected) AccentGold else Color.Black.copy(alpha = 0.6f), CircleShape)
+                    .border(1.dp, Color.White.copy(alpha = 0.4f), CircleShape),
                 contentAlignment = Alignment.Center
             ) {
                 if (isSelected) {

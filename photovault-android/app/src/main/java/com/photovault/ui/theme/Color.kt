@@ -3,73 +3,90 @@ package com.photovault.ui.theme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.ui.graphics.Color
 
-// Mnemos Neutral Scale (True black is banned; calibrated OLED dark palette)
-val NeutralCanvas          = Color(0xFF0D0D0D) // Canvas beneath grid & detail viewer
-val NeutralSurface         = Color(0xFF121212) // Base app bar, bottom nav, card surface
-val NeutralElevated        = Color(0xFF181818) // Sheets, elevated containers
-val NeutralHighest         = Color(0xFF202020) // Floating action bar, dialogue surfaces
-val NeutralHairline        = Color(0xFF262626) // 1dp dividers, hairline borders
-val NeutralHairlineSubtle  = Color(0xFF1C1C1C) // Micro hairline gutters
+// Radix Slate Neutral Scale
+val Slate950 = Color(0xFF020617) // Background / Canvas
+val Slate900 = Color(0xFF0F172A) // Cards / Navigation Bar / Surfaces
+val Slate800 = Color(0xFF1E293B) // Card Borders / Hover / Dividers
+val Slate700 = Color(0xFF334155) // Inactive Borders / Strong Dividers
+val Slate600 = Color(0xFF475569) // Muted Icons / Secondary Text Muted
+val Slate400 = Color(0xFF94A3B8) // Secondary Text / Subheadings
+val Slate200 = Color(0xFFE2E8F0) // High Contrast Text
+val Slate50  = Color(0xFFF8FAFC) // Primary Text / White
 
-// Sole Accent (Amber / Gold)
-val AccentAmber            = Color(0xFFD4A017) // Primary accent
-val AccentAmberLight       = Color(0xFFF2C94C) // Aperture ring highlight
-val AccentAmberGlow        = Color(0x2ED4A017) // 18% Amber tint for subtle indicator
-val AccentAmberBorder      = Color(0xFFD4A017) // 4dp selection inset border
+// Primary Accent: Iris / Indigo Scale
+val IrisPrimary = Color(0xFF6366F1) // Active States / Primary CTA / Toggles
+val IrisLight   = Color(0xFF818CF8) // Active Icon Fill / Focus Rings
+val IrisDark    = Color(0xFF4F46E5) // Pressed States
+val IrisSubtle  = Color(0xFF1E1B4B) // Icon Circle Background (Tint)
+val IrisTrack   = Color(0xFF312E81) // Switch Track Tint
 
-// Status Indicators (Weight & type only, no loud banners)
-val StatusSyncing          = Color(0xFFD4A017) // "Syncing…" in amber
-val StatusSynced           = Color(0xFF8E8E93) // "Up to date" in secondary slate
-val StatusError            = Color(0xFFCF6679) // Restrained error red
+// Warning Accent: Amber (Reserved strictly for warnings)
+val WarningAmber  = Color(0xFFF59E0B) // Warning Text / Status
+val WarningSubtle = Color(0xFF451A03) // Warning Background Tint
 
-// Text & Typography Hierarchy
-val TextPrimary            = Color(0xFFEDEDED) // 93% white, high-contrast readable
-val TextSecondary          = Color(0xFF8E8E93) // 56% slate-gray, secondary metadata
-val TextMuted              = Color(0xFF555555) // 33% subdued gray, inactive chrome
-val TextMonoTechnical      = Color(0xFFAAAAAA) // Monospace numerals and timestamps
+// Destructive Accent: Tomato Red (Used strictly for Trash / Disconnect)
+val TomatoRed    = Color(0xFFEF4444) // Destructive Buttons / Delete Icons
+val TomatoLight  = Color(0xFFF87171) // Destructive Hover
+val TomatoSubtle = Color(0xFF450A0A) // Destructive Background Tint
 
-// Backwards-compatible aliases
-val DarkBackground         = NeutralCanvas
-val DarkSurface            = NeutralSurface
-val DarkSurfaceVariant     = NeutralElevated
-val DarkSurfaceOverlay     = NeutralHighest
-val AccentGold             = AccentAmber
-val AccentGoldSubtle       = Color(0xFF9A7410)
-val AccentGoldGlow         = AccentAmberGlow
-val BorderSubtle           = NeutralHairline
-val DangerRed              = StatusError
-val EmeraldGreen           = Color(0xFF10B981)
+// Status Indicators
+val StatusSyncing = IrisPrimary
+val StatusSynced  = Slate400
+val StatusError   = TomatoRed
+
+// Text Hierarchy
+val TextPrimary   = Slate50
+val TextSecondary = Slate400
+val TextMuted     = Slate600
+
+// Backwards-compatible aliases for legacy references
+val NeutralCanvas      = Slate950
+val NeutralSurface     = Slate900
+val NeutralElevated    = Slate900
+val NeutralHighest     = Slate800
+val NeutralHairline    = Slate800
+val NeutralHairlineSubtle = Slate800
+val AccentAmber        = IrisPrimary
+val AccentGold         = IrisPrimary
+val AccentGoldGlow     = IrisSubtle
+val DarkBackground     = Slate950
+val DarkSurface        = Slate900
+val DarkSurfaceVariant = Slate900
+val DarkSurfaceOverlay = Slate800
+val BorderSubtle       = Slate800
+val DangerRed          = TomatoRed
+val EmeraldGreen       = Color(0xFF10B981)
 
 val DarkColorScheme = darkColorScheme(
-    primary = AccentAmber,
-    onPrimary = NeutralCanvas,
-    primaryContainer = Color(0xFF332608),
-    onPrimaryContainer = AccentAmberLight,
-    secondary = NeutralElevated,
-    onSecondary = TextPrimary,
-    secondaryContainer = NeutralHighest,
-    onSecondaryContainer = TextPrimary,
-    tertiary = AccentAmber,
-    onTertiary = NeutralCanvas,
-    tertiaryContainer = Color(0xFF332608),
-    onTertiaryContainer = AccentAmberLight,
-    background = NeutralCanvas,
-    onBackground = TextPrimary,
-    surface = NeutralSurface,
-    onSurface = TextPrimary,
-    surfaceVariant = NeutralElevated,
-    onSurfaceVariant = TextSecondary,
-    surfaceContainerLowest = NeutralCanvas,
-    surfaceContainerLow = Color(0xFF0F0F0F),
-    surfaceContainer = NeutralSurface,
-    surfaceContainerHigh = NeutralElevated,
-    surfaceContainerHighest = NeutralHighest,
-    surfaceDim = NeutralCanvas,
-    surfaceBright = NeutralHighest,
-    outline = NeutralHairline,
-    outlineVariant = NeutralHairlineSubtle,
-    error = StatusError,
+    primary = IrisPrimary,
+    onPrimary = Slate50,
+    primaryContainer = IrisSubtle,
+    onPrimaryContainer = IrisLight,
+    secondary = Slate900,
+    onSecondary = Slate50,
+    secondaryContainer = Slate800,
+    onSecondaryContainer = Slate200,
+    tertiary = IrisLight,
+    onTertiary = Slate950,
+    tertiaryContainer = IrisSubtle,
+    onTertiaryContainer = IrisLight,
+    background = Slate950,
+    onBackground = Slate50,
+    surface = Slate900,
+    onSurface = Slate50,
+    surfaceVariant = Slate900,
+    onSurfaceVariant = Slate400,
+    surfaceContainerLowest = Slate950,
+    surfaceContainerLow = Slate950,
+    surfaceContainer = Slate900,
+    surfaceContainerHigh = Slate900,
+    surfaceContainerHighest = Slate800,
+    surfaceDim = Slate950,
+    surfaceBright = Slate800,
+    outline = Slate800,
+    outlineVariant = Slate800,
+    error = TomatoRed,
     onError = Color.White,
-    errorContainer = Color(0xFF3E1A20),
-    onErrorContainer = Color(0xFFFDA4AF)
+    errorContainer = TomatoSubtle,
+    onErrorContainer = TomatoLight
 )

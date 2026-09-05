@@ -2,6 +2,7 @@ package com.photovault.ui.screens.devices
 
 import android.widget.Toast
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -11,7 +12,6 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -23,34 +23,22 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CloudDownload
 import androidx.compose.material.icons.filled.Computer
-import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.filled.Devices
-import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.Laptop
 import androidx.compose.material.icons.filled.PhoneAndroid
 import androidx.compose.material.icons.filled.PhoneIphone
 import androidx.compose.material.icons.filled.PhotoLibrary
 import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material.icons.filled.Smartphone
-import androidx.compose.material.icons.filled.Storage
-import androidx.compose.material.icons.filled.Sync
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -63,7 +51,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.FontWeight
@@ -71,24 +58,25 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.photovault.PhotoVaultApplication
 import com.photovault.data.model.DeviceItem
-import com.photovault.data.model.MediaItem
-import com.photovault.ui.components.GlassSurfaceBase
+import com.photovault.ui.components.ButtonVariant
 import com.photovault.ui.components.HapticHelper
-import com.photovault.ui.components.LiquidGlassCard
-import com.photovault.ui.components.LiquidGlassPill
-import com.photovault.ui.components.liquidGlass
-import com.photovault.ui.theme.AccentGold
-import com.photovault.ui.theme.AccentGoldGlow
-import com.photovault.ui.theme.DarkBackground
-import com.photovault.ui.theme.DarkSurfaceVariant
-import com.photovault.ui.theme.DangerRed
-import com.photovault.ui.theme.EmeraldGreen
-import com.photovault.ui.theme.TextMuted
-import com.photovault.ui.theme.TextPrimary
-import com.photovault.ui.theme.TextSecondary
+import com.photovault.ui.components.MnemosButton
+import com.photovault.ui.components.MnemosCard
+import com.photovault.ui.components.MnemosPageHeader
+import com.photovault.ui.theme.IrisLight
+import com.photovault.ui.theme.IrisPrimary
+import com.photovault.ui.theme.IrisSubtle
+import com.photovault.ui.theme.MnemosType
+import com.photovault.ui.theme.Slate200
+import com.photovault.ui.theme.Slate400
+import com.photovault.ui.theme.Slate50
+import com.photovault.ui.theme.Slate800
+import com.photovault.ui.theme.Slate900
+import com.photovault.ui.theme.Slate950
+import com.photovault.ui.theme.TomatoRed
+import com.photovault.ui.theme.TomatoSubtle
 import kotlinx.coroutines.launch
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DevicesScreen(
     onNavigateToGalleryWithDevice: (deviceId: String, deviceName: String) -> Unit
@@ -152,7 +140,7 @@ fun DevicesScreen(
                 downloadingDeviceId = null
                 downloadProgress = null
                 HapticHelper.vibrateSuccess(context)
-                Toast.makeText(context, "Downloaded $completed files from ${device.name} to gallery!", Toast.LENGTH_LONG).show()
+                Toast.makeText(context, "Downloaded $completed files from ${device.name} to gallery", Toast.LENGTH_LONG).show()
             }.onFailure {
                 downloadingDeviceId = null
                 downloadProgress = null
@@ -178,35 +166,18 @@ fun DevicesScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(DarkBackground)
+            .background(Slate950)
     ) {
-        Column(modifier = Modifier.fillMaxSize()) {
-            // Liquid Glass Top Bar
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .statusBarsPadding()
-                    .padding(horizontal = 16.dp, vertical = 8.dp)
-            ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Column {
-                        Text(
-                            text = "Vault Devices",
-                            fontSize = 22.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = TextPrimary
-                        )
-                        Text(
-                            text = "${devices.size} active nodes registered",
-                            fontSize = 11.sp,
-                            color = TextMuted
-                        )
-                    }
-
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .statusBarsPadding()
+        ) {
+            // 20px Page Header
+            MnemosPageHeader(
+                title = "Paired Devices",
+                subtitle = "${devices.size} active cluster nodes registered",
+                trailingAction = {
                     IconButton(onClick = {
                         HapticHelper.performClick(view)
                         loadDevices()
@@ -214,78 +185,28 @@ fun DevicesScreen(
                         Icon(
                             imageVector = Icons.Default.Refresh,
                             contentDescription = "Refresh",
-                            tint = AccentGold,
+                            tint = Slate400,
                             modifier = Modifier.size(20.dp)
                         )
                     }
                 }
-            }
+            )
 
             if (isLoading && devices.isEmpty()) {
                 Box(
                     modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.Center
                 ) {
-                    CircularProgressIndicator(color = AccentGold)
+                    CircularProgressIndicator(color = IrisPrimary, strokeWidth = 2.dp)
                 }
             } else {
                 LazyColumn(
                     modifier = Modifier
                         .fillMaxSize()
                         .padding(horizontal = 16.dp),
-                    verticalArrangement = Arrangement.spacedBy(14.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
                     contentPadding = androidx.compose.foundation.layout.PaddingValues(bottom = 90.dp, top = 6.dp)
                 ) {
-                    // Header Liquid Glass Banner
-                    item {
-                        LiquidGlassCard(
-                            glowAccent = AccentGold,
-                            shape = RoundedCornerShape(24.dp),
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(18.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(14.dp)
-                            ) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(46.dp)
-                                        .liquidGlass(
-                                            shape = CircleShape,
-                                            backgroundColor = AccentGoldGlow,
-                                            borderColor = AccentGold,
-                                            borderAlphaTop = 0.40f
-                                        ),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.Devices,
-                                        contentDescription = null,
-                                        tint = AccentGold,
-                                        modifier = Modifier.size(24.dp)
-                                    )
-                                }
-                                Column(modifier = Modifier.weight(1f)) {
-                                    Text(
-                                        text = "Cross-Device Node Hub",
-                                        color = TextPrimary,
-                                        fontWeight = FontWeight.Bold,
-                                        fontSize = 15.sp
-                                    )
-                                    Text(
-                                        text = "Browse, batch-download, or revoke connected devices from your vault.",
-                                        color = TextMuted,
-                                        fontSize = 12.sp
-                                    )
-                                }
-                            }
-                        }
-                    }
-
-                    // Device Liquid Glass Cards
                     items(devices, key = { it.id }) { device ->
                         val isCurrent = device.id == currentDeviceId
                         val itemCount = deviceMediaCounts[device.id] ?: 0
@@ -321,33 +242,31 @@ fun DevicesScreen(
             AlertDialog(
                 onDismissRequest = { deviceToDelete = null },
                 title = {
-                    Text("Remove Node '${dev.name}'?", color = TextPrimary, fontWeight = FontWeight.Bold)
+                    Text("Remove Node '${dev.name}'?", color = Slate50, style = MnemosType.CardTitle15)
                 },
                 text = {
                     Text(
                         "Are you sure you want to revoke '${dev.name}' (${dev.deviceType.uppercase()})? Files uploaded by this node will remain securely preserved on your vault server.",
-                        color = TextSecondary,
-                        fontSize = 13.sp
+                        color = Slate400,
+                        style = MnemosType.BodySecondary13
                     )
                 },
                 confirmButton = {
-                    Button(
+                    MnemosButton(
+                        text = "Revoke Device",
                         onClick = {
                             deleteDevice(dev)
                             deviceToDelete = null
                         },
-                        colors = ButtonDefaults.buttonColors(containerColor = DangerRed),
-                        shape = RoundedCornerShape(10.dp)
-                    ) {
-                        Text("Revoke Device", color = Color.White, fontWeight = FontWeight.Bold)
-                    }
+                        variant = ButtonVariant.DESTRUCTIVE
+                    )
                 },
                 dismissButton = {
                     TextButton(onClick = { deviceToDelete = null }) {
-                        Text("Cancel", color = TextMuted)
+                        Text("Cancel", color = Slate400)
                     }
                 },
-                containerColor = DarkSurfaceVariant
+                containerColor = Slate900
             )
         }
     }
@@ -373,16 +292,10 @@ private fun DeviceCard(
         else -> Icons.Default.Computer
     }
 
-    LiquidGlassCard(
-        glowAccent = if (isCurrentDevice) AccentGold else null,
-        shape = RoundedCornerShape(22.dp),
-        modifier = Modifier.fillMaxWidth()
-    ) {
+    MnemosCard(modifier = Modifier.fillMaxWidth()) {
         Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+            modifier = Modifier.fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -391,20 +304,16 @@ private fun DeviceCard(
             ) {
                 Box(
                     modifier = Modifier
-                        .size(44.dp)
-                        .liquidGlass(
-                            shape = CircleShape,
-                            backgroundColor = if (isCurrentDevice) AccentGoldGlow else Color(0x66181C28),
-                            borderColor = if (isCurrentDevice) AccentGold else Color.White,
-                            borderAlphaTop = 0.30f
-                        ),
+                        .size(32.dp)
+                        .clip(CircleShape)
+                        .background(if (isCurrentDevice) IrisSubtle else Slate800),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         imageVector = icon,
                         contentDescription = null,
-                        tint = if (isCurrentDevice) AccentGold else TextSecondary,
-                        modifier = Modifier.size(22.dp)
+                        tint = if (isCurrentDevice) IrisLight else Slate400,
+                        modifier = Modifier.size(16.dp)
                     )
                 }
 
@@ -415,30 +324,33 @@ private fun DeviceCard(
                     ) {
                         Text(
                             text = device.name,
-                            color = TextPrimary,
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 15.sp
+                            style = MnemosType.CardTitle15,
+                            color = Slate50
                         )
                         if (isCurrentDevice) {
                             Box(
                                 modifier = Modifier
-                                    .background(AccentGoldGlow, RoundedCornerShape(6.dp))
-                                    .padding(horizontal = 6.dp, vertical = 2.dp)
+                                    .clip(RoundedCornerShape(4.dp))
+                                    .background(IrisSubtle)
+                                    .border(0.5.dp, IrisPrimary, RoundedCornerShape(4.dp))
+                                    .padding(horizontal = 5.dp, vertical = 2.dp)
                             ) {
                                 Text(
                                     text = "THIS PHONE",
-                                    color = AccentGold,
+                                    color = IrisLight,
                                     fontSize = 9.sp,
-                                    fontWeight = FontWeight.Bold
+                                    fontWeight = FontWeight.SemiBold
                                 )
                             }
                         }
                     }
 
+                    Spacer(modifier = Modifier.height(2.dp))
+
                     Text(
-                        text = "Type: ${device.deviceType.uppercase()} • $mediaCount files in vault",
-                        color = TextMuted,
-                        fontSize = 12.sp
+                        text = "Type: ${device.deviceType.uppercase()} • $mediaCount items in vault",
+                        style = MnemosType.Mono12,
+                        color = Slate400
                     )
                 }
 
@@ -451,8 +363,8 @@ private fun DeviceCard(
                         Icon(
                             imageVector = Icons.Default.DeleteOutline,
                             contentDescription = "Remove Device",
-                            tint = DangerRed.copy(alpha = 0.85f),
-                            modifier = Modifier.size(20.dp)
+                            tint = TomatoRed,
+                            modifier = Modifier.size(18.dp)
                         )
                     }
                 }
@@ -465,14 +377,14 @@ private fun DeviceCard(
                     horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     CircularProgressIndicator(
-                        modifier = Modifier.size(16.dp),
+                        modifier = Modifier.size(14.dp),
                         strokeWidth = 2.dp,
-                        color = AccentGold
+                        color = IrisPrimary
                     )
                     Text(
-                        text = "Downloading ${downloadProgress.first}/${downloadProgress.second} files to gallery...",
-                        color = AccentGold,
-                        fontSize = 12.sp
+                        text = "Downloading ${downloadProgress.first}/${downloadProgress.second} files…",
+                        style = MnemosType.Mono12,
+                        color = IrisLight
                     )
                 }
             }
@@ -482,42 +394,22 @@ private fun DeviceCard(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                OutlinedButton(
+                MnemosButton(
+                    text = "View Photos",
                     onClick = onViewPhotos,
                     modifier = Modifier.weight(1f),
-                    shape = RoundedCornerShape(12.dp),
-                    colors = ButtonDefaults.outlinedButtonColors(contentColor = TextPrimary),
-                    border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.15f))
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
-                    ) {
-                        Icon(Icons.Default.PhotoLibrary, contentDescription = null, modifier = Modifier.size(16.dp), tint = AccentGold)
-                        Text("View Photos", fontSize = 12.sp, fontWeight = FontWeight.Medium)
-                    }
-                }
+                    variant = ButtonVariant.OUTLINE,
+                    icon = Icons.Default.PhotoLibrary
+                )
 
-                Button(
+                MnemosButton(
+                    text = if (isDownloading) "Downloading…" else "Download All",
                     onClick = onDownloadAll,
                     enabled = !isDownloading && mediaCount > 0,
                     modifier = Modifier.weight(1f),
-                    shape = RoundedCornerShape(12.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xD9101420),
-                        contentColor = TextPrimary,
-                        disabledContainerColor = Color(0x66101420),
-                        disabledContentColor = TextMuted
-                    )
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
-                    ) {
-                        Icon(Icons.Default.CloudDownload, contentDescription = null, modifier = Modifier.size(16.dp), tint = AccentGold)
-                        Text(if (isDownloading) "Downloading..." else "Download All", fontSize = 12.sp, fontWeight = FontWeight.Medium)
-                    }
-                }
+                    variant = ButtonVariant.SECONDARY,
+                    icon = Icons.Default.CloudDownload
+                )
             }
         }
     }

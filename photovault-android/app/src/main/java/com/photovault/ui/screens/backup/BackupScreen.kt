@@ -17,24 +17,14 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CloudUpload
 import androidx.compose.material.icons.filled.Sync
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Switch
-import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -46,27 +36,33 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.photovault.PhotoVaultApplication
+import com.photovault.ui.components.ButtonVariant
 import com.photovault.ui.components.HapticHelper
-import com.photovault.ui.theme.AccentGold
-import com.photovault.ui.theme.DarkBackground
-import com.photovault.ui.theme.DarkSurfaceVariant
-import com.photovault.ui.theme.TextMuted
-import com.photovault.ui.theme.TextPrimary
-import com.photovault.ui.theme.TextSecondary
+import com.photovault.ui.components.IconTintVariant
+import com.photovault.ui.components.MnemosButton
+import com.photovault.ui.components.MnemosCard
+import com.photovault.ui.components.MnemosPageHeader
+import com.photovault.ui.components.MnemosRowCard
+import com.photovault.ui.components.MnemosSwitch
+import com.photovault.ui.theme.IrisLight
+import com.photovault.ui.theme.IrisPrimary
+import com.photovault.ui.theme.IrisSubtle
+import com.photovault.ui.theme.MnemosType
+import com.photovault.ui.theme.Slate400
+import com.photovault.ui.theme.Slate50
+import com.photovault.ui.theme.Slate800
+import com.photovault.ui.theme.Slate950
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.FileOutputStream
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun BackupScreen() {
     val app = PhotoVaultApplication.instance
@@ -94,7 +90,7 @@ fun BackupScreen() {
             scope.launch {
                 for ((index, uri) in uris.withIndex()) {
                     currentUploadIndex = index + 1
-                    uploadStatusMessage = "Uploading item $currentUploadIndex of $totalUploadCount..."
+                    uploadStatusMessage = "Uploading item $currentUploadIndex of $totalUploadCount…"
                     uploadProgress = 0f
 
                     val file = copyUriToTempFile(context, uri)
@@ -107,111 +103,87 @@ fun BackupScreen() {
                     }
                 }
                 isUploading = false
-                uploadStatusMessage = "Successfully uploaded $totalUploadCount items!"
+                uploadStatusMessage = "Successfully uploaded $totalUploadCount items"
                 HapticHelper.vibrateSuccess(context)
             }
         }
     }
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = {
-                    Text(
-                        text = "Backup & Upload",
-                        fontSize = 20.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = TextPrimary
-                    )
-                },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = DarkBackground)
-            )
-        },
-        containerColor = DarkBackground
-    ) { paddingValues ->
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Slate950)
+            .statusBarsPadding()
+    ) {
+        // 20px Page Header
+        MnemosPageHeader(
+            title = "Backup",
+            subtitle = "Camera roll auto-sync & manual uploads"
+        )
+
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(paddingValues)
-                .padding(20.dp),
-            verticalArrangement = Arrangement.spacedBy(20.dp)
+                .padding(horizontal = 16.dp, vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            // Auto-Backup Card
-            Card(
-                colors = CardDefaults.cardColors(containerColor = DarkSurfaceVariant),
-                shape = RoundedCornerShape(16.dp),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(20.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = "Auto-Backup Camera Roll",
-                            color = TextPrimary,
-                            fontWeight = FontWeight.SemiBold,
-                            fontSize = 15.sp
-                        )
-                        Text(
-                            text = "Automatically sync new photos in the background when connected to Wi-Fi",
-                            color = TextMuted,
-                            fontSize = 12.sp,
-                            modifier = Modifier.padding(top = 4.dp)
-                        )
-                    }
-
-                    Switch(
+            // Auto-Backup Row Card
+            MnemosRowCard(
+                title = "Auto-Backup Camera Roll",
+                subtitle = "Sync new photos and videos automatically when connected to server",
+                icon = Icons.Default.Sync,
+                iconTintVariant = IconTintVariant.IRIS,
+                trailingContent = {
+                    MnemosSwitch(
                         checked = autoBackup,
                         onCheckedChange = {
                             HapticHelper.performClick(view)
                             app.preferenceStore.setAutoBackup(it)
-                        },
-                        colors = SwitchDefaults.colors(
-                            checkedThumbColor = Color.Black,
-                            checkedTrackColor = AccentGold,
-                            uncheckedTrackColor = DarkBackground
-                        )
+                        }
                     )
                 }
-            }
+            )
 
-            // Manual Select & Upload Card
-            Card(
-                colors = CardDefaults.cardColors(containerColor = DarkSurfaceVariant),
-                shape = RoundedCornerShape(16.dp),
-                modifier = Modifier.fillMaxWidth()
-            ) {
+            // Manual Upload Container Card
+            MnemosCard(modifier = Modifier.fillMaxWidth()) {
                 Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(20.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
+                    modifier = Modifier.fillMaxWidth(),
                     verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.CloudUpload,
-                        contentDescription = null,
-                        tint = AccentGold,
-                        modifier = Modifier.size(48.dp)
-                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(32.dp)
+                                .clip(CircleShape)
+                                .background(IrisSubtle),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.CloudUpload,
+                                contentDescription = null,
+                                tint = IrisLight,
+                                modifier = Modifier.size(16.dp)
+                            )
+                        }
 
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text(
-                            text = "Manual Upload",
-                            color = TextPrimary,
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 16.sp
-                        )
-                        Text(
-                            text = "Select photos or videos from your phone gallery to back up immediately",
-                            color = TextMuted,
-                            fontSize = 12.sp,
-                            modifier = Modifier.padding(top = 4.dp)
-                        )
+                        Spacer(modifier = Modifier.size(14.dp))
+
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "Manual Upload",
+                                style = MnemosType.CardTitle15,
+                                color = Slate50
+                            )
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(
+                                text = "Select photos or videos from your device to upload immediately",
+                                style = MnemosType.BodySecondary13,
+                                color = Slate400
+                            )
+                        }
                     }
 
                     if (isUploading) {
@@ -223,19 +195,20 @@ fun BackupScreen() {
                                 progress = { uploadProgress },
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .height(8.dp),
-                                color = AccentGold,
-                                trackColor = DarkBackground
+                                    .height(6.dp)
+                                    .clip(CircleShape),
+                                color = IrisPrimary,
+                                trackColor = Slate800
                             )
                             Text(
                                 text = uploadStatusMessage,
-                                color = TextSecondary,
-                                fontSize = 12.sp,
-                                modifier = Modifier.align(Alignment.CenterHorizontally)
+                                style = MnemosType.Mono12,
+                                color = Slate400
                             )
                         }
                     } else {
-                        Button(
+                        MnemosButton(
+                            text = "Select Photos & Videos",
                             onClick = {
                                 HapticHelper.performClick(view)
                                 photoPickerLauncher.launch(
@@ -243,23 +216,14 @@ fun BackupScreen() {
                                 )
                             },
                             modifier = Modifier.fillMaxWidth(),
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = AccentGold,
-                                contentColor = Color.Black
-                            ),
-                            shape = RoundedCornerShape(12.dp)
-                        ) {
-                            Text(
-                                text = "Select Photos & Videos",
-                                fontWeight = FontWeight.SemiBold,
-                                fontSize = 14.sp
-                            )
-                        }
+                            variant = ButtonVariant.PRIMARY,
+                            icon = Icons.Default.CloudUpload
+                        )
 
                         Text(
                             text = uploadStatusMessage,
-                            color = TextMuted,
-                            fontSize = 12.sp
+                            style = MnemosType.Mono12,
+                            color = Slate400
                         )
                     }
                 }

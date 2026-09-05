@@ -96,11 +96,42 @@ object MnemosType {
         letterSpacing = 0.06.em
     )
 
-    // Monospace Scale (Exclusively for file sizes, timestamps, resolution, device technical details, sync counts)
+    // 20sp Page Title (Medium)
+    val PageTitle20 = TextStyle(
+        fontFamily = InterFontFamily,
+        fontWeight = FontWeight.Medium,
+        fontSize = 20.sp,
+        letterSpacing = (-0.01).em
+    )
+
+    // 15sp Card Title (Medium)
+    val CardTitle15 = TextStyle(
+        fontFamily = InterFontFamily,
+        fontWeight = FontWeight.Medium,
+        fontSize = 15.sp,
+        letterSpacing = 0.em
+    )
+
+    // 13sp Body Secondary / Subtitle
+    val BodySecondary13 = TextStyle(
+        fontFamily = InterFontFamily,
+        fontWeight = FontWeight.Normal,
+        fontSize = 13.sp,
+        letterSpacing = 0.01.em
+    )
+
+    // Monospace Scales (Host URL, Device ID, Storage sizes, hashes, technical metrics)
     val Mono11 = TextStyle(
         fontFamily = RobotoMonoFontFamily,
         fontWeight = FontWeight.Medium,
         fontSize = 11.sp,
+        letterSpacing = 0.em
+    )
+
+    val Mono12 = TextStyle(
+        fontFamily = RobotoMonoFontFamily,
+        fontWeight = FontWeight.Normal,
+        fontSize = 12.sp,
         letterSpacing = 0.em
     )
 
@@ -131,5 +162,5 @@ val PhotoVaultTypography = Typography(
     bodySmall = MnemosType.BodySmall13,
     labelLarge = MnemosType.BodySmall13.copy(fontWeight = FontWeight.Medium),
     labelMedium = MnemosType.Label11,
-    labelSmall = MnemosType.Mono11
+    labelSmall = MnemosType.Mono12
 )

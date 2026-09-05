@@ -23,6 +23,7 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -32,8 +33,10 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -41,16 +44,9 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Sort
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.CloudDownload
-import androidx.compose.material.icons.filled.Computer
 import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Devices
 import androidx.compose.material.icons.filled.Favorite
-import androidx.compose.material.icons.filled.Language
-import androidx.compose.material.icons.filled.Laptop
-import androidx.compose.material.icons.filled.PhoneAndroid
-import androidx.compose.material.icons.filled.PhoneIphone
 import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.Public
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.ViewModule
 import androidx.compose.material3.Button
@@ -66,6 +62,7 @@ import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -73,6 +70,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.FilterQuality
@@ -88,18 +86,24 @@ import coil.request.ImageRequest
 import com.photovault.PhotoVaultApplication
 import com.photovault.data.model.DeviceItem
 import com.photovault.data.model.MediaItem
+import com.photovault.ui.components.ButtonVariant
 import com.photovault.ui.components.HapticHelper
-import com.photovault.ui.theme.AccentAmber
+import com.photovault.ui.components.MnemosButton
+import com.photovault.ui.components.NodeBadge
+import com.photovault.ui.components.TimelineSectionHeader
+import com.photovault.ui.theme.IrisLight
+import com.photovault.ui.theme.IrisPrimary
+import com.photovault.ui.theme.IrisSubtle
 import com.photovault.ui.theme.MnemosType
-import com.photovault.ui.theme.NeutralCanvas
-import com.photovault.ui.theme.NeutralElevated
-import com.photovault.ui.theme.NeutralHairline
-import com.photovault.ui.theme.NeutralSurface
-import com.photovault.ui.theme.StatusError
-import com.photovault.ui.theme.StatusSyncing
-import com.photovault.ui.theme.TextMuted
-import com.photovault.ui.theme.TextPrimary
-import com.photovault.ui.theme.TextSecondary
+import com.photovault.ui.theme.Slate200
+import com.photovault.ui.theme.Slate400
+import com.photovault.ui.theme.Slate50
+import com.photovault.ui.theme.Slate700
+import com.photovault.ui.theme.Slate800
+import com.photovault.ui.theme.Slate900
+import com.photovault.ui.theme.Slate950
+import com.photovault.ui.theme.TomatoRed
+import com.photovault.ui.theme.WarningAmber
 import kotlinx.coroutines.launch
 
 enum class SortOption(val label: String, val sortField: String, val sortOrder: String) {
@@ -109,6 +113,33 @@ enum class SortOption(val label: String, val sortField: String, val sortOrder: S
     SMALLEST("Smallest Size", "size_bytes", "asc"),
     NAME_AZ("Name (A to Z)", "filename", "asc"),
     NAME_ZA("Name (Z to A)", "filename", "desc")
+}
+
+data class TimelineGroup(
+    val monthYear: String,
+    val items: List<MediaItem>,
+    val startIndex: Int
+)
+
+fun parseMonthYear(dateStr: String?): String {
+    if (dateStr.isNullOrBlank()) return "Recent"
+    return try {
+        val parts = dateStr.substringBefore("T").split("-")
+        if (parts.size >= 2) {
+            val year = parts[0]
+            val monthNum = parts[1].toIntOrNull() ?: 1
+            val monthNames = arrayOf(
+                "January", "February", "March", "April", "May", "June",
+                "July", "August", "September", "October", "November", "December"
+            )
+            val month = monthNames.getOrElse(monthNum - 1) { "Month" }
+            "$month $year"
+        } else {
+            "Recent"
+        }
+    } catch (e: Exception) {
+        "Recent"
+    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -121,6 +152,7 @@ fun GalleryScreen(
     val context = LocalContext.current
     val view = LocalView.current
     val scope = rememberCoroutineScope()
+    val gridState = rememberLazyGridState()
 
     val columns by app.preferenceStore.gridColumns.collectAsState()
     val currentDeviceId by app.preferenceStore.deviceId.collectAsState()
@@ -179,6 +211,23 @@ fun GalleryScreen(
 
     LaunchedEffect(selectedTypeFilter, selectedDeviceFilter, currentSort) {
         loadData()
+    }
+
+    // Timeline grouping by Month & Year
+    val timelineGroups = remember(mediaList, currentSort) {
+        if (currentSort == SortOption.NEWEST || currentSort == SortOption.OLDEST) {
+            val groups = mutableListOf<TimelineGroup>()
+            var currentIndex = 0
+            val groupedMap = mediaList.groupBy { parseMonthYear(it.displayDate) }
+            groupedMap.forEach { (monthYear, items) ->
+                groups.add(TimelineGroup(monthYear, items, currentIndex))
+                // 1 item for header + N items
+                currentIndex += 1 + items.size
+            }
+            groups
+        } else {
+            listOf(TimelineGroup("All Media", mediaList, 0))
+        }
     }
 
     fun toggleSelection(fileId: String) {
@@ -247,10 +296,10 @@ fun GalleryScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(NeutralCanvas)
+            .background(Slate950)
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
-            // Top Bar: Quiet, persistent sync state affordance & controls
+            // Top Bar: 20px Page Header + Quiet Sync State
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -271,12 +320,12 @@ fun GalleryScreen(
                                 isSelectionMode = false
                                 selectedFileIds = emptySet()
                             }) {
-                                Icon(Icons.Default.Close, contentDescription = "Cancel", tint = TextPrimary)
+                                Icon(Icons.Default.Close, contentDescription = "Cancel", tint = Slate50)
                             }
                             Text(
                                 text = "${selectedFileIds.size} SELECTED",
                                 style = MnemosType.Label11,
-                                color = AccentAmber
+                                color = IrisLight
                             )
                         }
 
@@ -290,41 +339,42 @@ fun GalleryScreen(
                         }) {
                             Text(
                                 text = if (selectedFileIds.size == mediaList.size) "Deselect" else "Select All",
-                                style = MnemosType.BodySmall13,
-                                color = AccentAmber
+                                style = MnemosType.BodySecondary13.copy(fontWeight = FontWeight.Medium),
+                                color = IrisLight
                             )
                         }
                     } else {
-                        // Title + Quiet Sync Affordance (Persistent top bar)
+                        // Title (20px medium) + Quiet Sync Pill
                         Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
                                 Text(
-                                    text = "MNEMOS",
-                                    style = MnemosType.Label11,
-                                    color = TextPrimary
+                                    text = "Library",
+                                    style = MnemosType.PageTitle20,
+                                    color = Slate50
                                 )
 
-                                // Quiet sync affordance (never loud, weight + type)
+                                // Quiet sync affordance
                                 Row(
                                     verticalAlignment = Alignment.CenterVertically,
                                     horizontalArrangement = Arrangement.spacedBy(4.dp),
                                     modifier = Modifier
-                                        .background(NeutralSurface, RoundedCornerShape(4.dp))
-                                        .border(1.dp, NeutralHairline, RoundedCornerShape(4.dp))
+                                        .clip(RoundedCornerShape(4.dp))
+                                        .background(Slate900)
+                                        .border(1.dp, Slate800, RoundedCornerShape(4.dp))
                                         .padding(horizontal = 6.dp, vertical = 2.dp)
                                 ) {
                                     Box(
                                         modifier = Modifier
                                             .size(5.dp)
-                                            .background(if (isLoading) StatusSyncing else AccentAmber, CircleShape)
+                                            .background(if (isLoading) IrisPrimary else Slate400, CircleShape)
                                     )
                                     Text(
-                                        text = if (isLoading) "Syncing…" else "Up to date",
-                                        style = MnemosType.Mono11,
-                                        color = if (isLoading) StatusSyncing else TextSecondary
+                                        text = if (isLoading) "Syncing…" else "Synced",
+                                        style = MnemosType.Mono12.copy(fontSize = 10.sp),
+                                        color = if (isLoading) IrisLight else Slate400
                                     )
                                 }
                             }
@@ -338,8 +388,8 @@ fun GalleryScreen(
                                     }
                                     else -> ""
                                 },
-                                style = MnemosType.Mono11,
-                                color = TextMuted
+                                style = MnemosType.Mono12.copy(fontSize = 11.sp),
+                                color = Slate400
                             )
                         }
 
@@ -351,7 +401,7 @@ fun GalleryScreen(
                                 HapticHelper.performClick(view)
                                 isSelectionMode = true
                             }) {
-                                Text("Select", style = MnemosType.BodySmall13, color = AccentAmber)
+                                Text("Select", style = MnemosType.BodySecondary13.copy(fontWeight = FontWeight.Medium), color = IrisLight)
                             }
 
                             IconButton(onClick = {
@@ -361,7 +411,7 @@ fun GalleryScreen(
                                 Icon(
                                     imageVector = Icons.AutoMirrored.Filled.Sort,
                                     contentDescription = "Sort Options",
-                                    tint = TextSecondary,
+                                    tint = Slate400,
                                     modifier = Modifier.size(20.dp)
                                 )
                             }
@@ -374,7 +424,7 @@ fun GalleryScreen(
                                 Icon(
                                     imageVector = Icons.Default.ViewModule,
                                     contentDescription = "Grid Density",
-                                    tint = TextSecondary,
+                                    tint = Slate400,
                                     modifier = Modifier.size(20.dp)
                                 )
                             }
@@ -386,7 +436,7 @@ fun GalleryScreen(
                                 Icon(
                                     imageVector = Icons.Default.Refresh,
                                     contentDescription = "Refresh",
-                                    tint = TextSecondary,
+                                    tint = Slate400,
                                     modifier = Modifier.size(20.dp)
                                 )
                             }
@@ -395,7 +445,7 @@ fun GalleryScreen(
                 }
             }
 
-            // Filter Row 1: Media Types (Restrained hairline pills)
+            // Filter Row 1: Media Types (Slate900 pills with 1dp Slate800 border)
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -412,15 +462,9 @@ fun GalleryScreen(
                     val isSelected = selectedTypeFilter == key
                     Box(
                         modifier = Modifier
-                            .background(
-                                if (isSelected) AccentAmber.copy(alpha = 0.15f) else NeutralSurface,
-                                RoundedCornerShape(6.dp)
-                            )
-                            .border(
-                                1.dp,
-                                if (isSelected) AccentAmber else NeutralHairline,
-                                RoundedCornerShape(6.dp)
-                            )
+                            .clip(RoundedCornerShape(6.dp))
+                            .background(if (isSelected) IrisSubtle else Slate900)
+                            .border(1.dp, if (isSelected) IrisPrimary else Slate800, RoundedCornerShape(6.dp))
                             .clickable {
                                 HapticHelper.performClick(view)
                                 selectedTypeFilter = key
@@ -430,7 +474,7 @@ fun GalleryScreen(
                         Text(
                             text = label,
                             style = MnemosType.Label11,
-                            color = if (isSelected) AccentAmber else TextSecondary
+                            color = if (isSelected) IrisLight else Slate400
                         )
                     }
                 }
@@ -448,15 +492,9 @@ fun GalleryScreen(
                 val isAllSelected = selectedDeviceFilter.isEmpty()
                 Box(
                     modifier = Modifier
-                        .background(
-                            if (isAllSelected) AccentAmber.copy(alpha = 0.15f) else NeutralSurface,
-                            RoundedCornerShape(6.dp)
-                        )
-                        .border(
-                            1.dp,
-                            if (isAllSelected) AccentAmber else NeutralHairline,
-                            RoundedCornerShape(6.dp)
-                        )
+                        .clip(RoundedCornerShape(6.dp))
+                        .background(if (isAllSelected) IrisSubtle else Slate900)
+                        .border(1.dp, if (isAllSelected) IrisPrimary else Slate800, RoundedCornerShape(6.dp))
                         .clickable {
                             HapticHelper.performClick(view)
                             selectedDeviceFilter = ""
@@ -466,22 +504,16 @@ fun GalleryScreen(
                     Text(
                         text = "ALL NODES",
                         style = MnemosType.Label11,
-                        color = if (isAllSelected) AccentAmber else TextSecondary
+                        color = if (isAllSelected) IrisLight else Slate400
                     )
                 }
 
                 val isOtherSelected = selectedDeviceFilter == "other_devices"
                 Box(
                     modifier = Modifier
-                        .background(
-                            if (isOtherSelected) AccentAmber.copy(alpha = 0.15f) else NeutralSurface,
-                            RoundedCornerShape(6.dp)
-                        )
-                        .border(
-                            1.dp,
-                            if (isOtherSelected) AccentAmber else NeutralHairline,
-                            RoundedCornerShape(6.dp)
-                        )
+                        .clip(RoundedCornerShape(6.dp))
+                        .background(if (isOtherSelected) IrisSubtle else Slate900)
+                        .border(1.dp, if (isOtherSelected) IrisPrimary else Slate800, RoundedCornerShape(6.dp))
                         .clickable {
                             HapticHelper.performClick(view)
                             selectedDeviceFilter = if (selectedDeviceFilter == "other_devices") "" else "other_devices"
@@ -491,7 +523,7 @@ fun GalleryScreen(
                     Text(
                         text = "OTHER NODES",
                         style = MnemosType.Label11,
-                        color = if (isOtherSelected) AccentAmber else TextSecondary
+                        color = if (isOtherSelected) IrisLight else Slate400
                     )
                 }
 
@@ -500,15 +532,9 @@ fun GalleryScreen(
                     val isThisPhone = dev.id == currentDeviceId
                     Box(
                         modifier = Modifier
-                            .background(
-                                if (isSelected) AccentAmber.copy(alpha = 0.15f) else NeutralSurface,
-                                RoundedCornerShape(6.dp)
-                            )
-                            .border(
-                                1.dp,
-                                if (isSelected) AccentAmber else NeutralHairline,
-                                RoundedCornerShape(6.dp)
-                            )
+                            .clip(RoundedCornerShape(6.dp))
+                            .background(if (isSelected) IrisSubtle else Slate900)
+                            .border(1.dp, if (isSelected) IrisPrimary else Slate800, RoundedCornerShape(6.dp))
                             .clickable {
                                 HapticHelper.performClick(view)
                                 selectedDeviceFilter = if (isSelected) "" else dev.id
@@ -518,7 +544,7 @@ fun GalleryScreen(
                         Text(
                             text = (if (isThisPhone) "THIS: " else "") + dev.name.uppercase(),
                             style = MnemosType.Label11,
-                            color = if (isSelected) AccentAmber else TextSecondary
+                            color = if (isSelected) IrisLight else Slate400
                         )
                     }
                 }
@@ -526,13 +552,13 @@ fun GalleryScreen(
 
             Spacer(modifier = Modifier.height(4.dp))
 
-            // The Hero Grid (Full-bleed, 1dp hairline gutter, pinch density)
+            // The Timeline Grid + Fast Date Scrubber (Full-bleed, 1dp hairline gutter, pinch density)
             if (isLoading && mediaList.isEmpty()) {
                 Box(
                     modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.Center
                 ) {
-                    CircularProgressIndicator(color = AccentAmber, strokeWidth = 2.dp)
+                    CircularProgressIndicator(color = IrisPrimary, strokeWidth = 2.dp)
                 }
             } else if (mediaList.isEmpty()) {
                 Box(
@@ -543,61 +569,114 @@ fun GalleryScreen(
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
-                        Text("VAULT EMPTY", style = MnemosType.Label11, color = TextMuted)
+                        Text("VAULT EMPTY", style = MnemosType.Label11, color = Slate400)
                         Text(
                             text = if (selectedDeviceFilter.isNotEmpty()) "No files match filter" else "Connect or sync camera roll",
-                            style = MnemosType.BodySmall13,
-                            color = TextSecondary
+                            style = MnemosType.BodySecondary13,
+                            color = Slate400
                         )
                     }
                 }
             } else {
-                LazyVerticalGrid(
-                    columns = GridCells.Fixed(columns),
-                    contentPadding = PaddingValues(0.dp), // Full-bleed
-                    horizontalArrangement = Arrangement.spacedBy(1.dp), // 1dp hairline gutter
-                    verticalArrangement = Arrangement.spacedBy(1.dp),
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .pointerInput(Unit) {
-                            detectTransformGestures { _, _, zoom, _ ->
-                                if (zoom > 1.30f && columns > 2) {
-                                    HapticHelper.performSelection(view)
-                                    app.preferenceStore.setGridColumns(columns - 1)
-                                } else if (zoom < 0.70f && columns < 5) {
-                                    HapticHelper.performSelection(view)
-                                    app.preferenceStore.setGridColumns(columns + 1)
+                Box(modifier = Modifier.fillMaxSize()) {
+                    LazyVerticalGrid(
+                        state = gridState,
+                        columns = GridCells.Fixed(columns),
+                        contentPadding = PaddingValues(0.dp),
+                        horizontalArrangement = Arrangement.spacedBy(1.dp),
+                        verticalArrangement = Arrangement.spacedBy(1.dp),
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .pointerInput(Unit) {
+                                detectTransformGestures { _, _, zoom, _ ->
+                                    if (zoom > 1.30f && columns > 2) {
+                                        HapticHelper.performSelection(view)
+                                        app.preferenceStore.setGridColumns(columns - 1)
+                                    } else if (zoom < 0.70f && columns < 5) {
+                                        HapticHelper.performSelection(view)
+                                        app.preferenceStore.setGridColumns(columns + 1)
+                                    }
+                                }
+                            }
+                    ) {
+                        timelineGroups.forEach { group ->
+                            if (group.monthYear != "All Media") {
+                                item(
+                                    key = "header_${group.monthYear}",
+                                    span = { GridItemSpan(columns) }
+                                ) {
+                                    TimelineSectionHeader(
+                                        title = group.monthYear,
+                                        itemCount = group.items.size
+                                    )
+                                }
+                            }
+
+                            items(group.items, key = { it.fileId }) { item ->
+                                val isSelected = selectedFileIds.contains(item.fileId)
+                                GalleryTile(
+                                    media = item,
+                                    isSelectionMode = isSelectionMode,
+                                    isSelected = isSelected,
+                                    onClick = {
+                                        if (isSelectionMode) {
+                                            toggleSelection(item.fileId)
+                                        } else {
+                                            HapticHelper.performClick(view)
+                                            onMediaSelected(item.fileId)
+                                        }
+                                    },
+                                    onLongClick = {
+                                        if (!isSelectionMode) {
+                                            isSelectionMode = true
+                                            toggleSelection(item.fileId)
+                                        }
+                                    }
+                                )
+                            }
+                        }
+                    }
+
+                    // Fast Date Scrubber on the Right Edge (when multiple groups exist)
+                    if (timelineGroups.size > 1 && !isSelectionMode) {
+                        Column(
+                            modifier = Modifier
+                                .align(Alignment.CenterEnd)
+                                .padding(end = 4.dp)
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(Slate950.copy(alpha = 0.85f))
+                                .border(0.5.dp, Slate800, RoundedCornerShape(12.dp))
+                                .padding(vertical = 6.dp, horizontal = 4.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            timelineGroups.take(8).forEach { group ->
+                                val label = group.monthYear.take(3).uppercase()
+                                Box(
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(4.dp))
+                                        .clickable {
+                                            HapticHelper.performClick(view)
+                                            scope.launch {
+                                                gridState.animateScrollToItem(group.startIndex)
+                                            }
+                                        }
+                                        .padding(horizontal = 4.dp, vertical = 2.dp)
+                                ) {
+                                    Text(
+                                        text = label,
+                                        style = MnemosType.Mono12.copy(fontSize = 9.sp, fontWeight = FontWeight.SemiBold),
+                                        color = Slate400
+                                    )
                                 }
                             }
                         }
-                ) {
-                    items(mediaList, key = { it.fileId }) { item ->
-                        val isSelected = selectedFileIds.contains(item.fileId)
-                        GalleryTile(
-                            media = item,
-                            isSelectionMode = isSelectionMode,
-                            isSelected = isSelected,
-                            onClick = {
-                                if (isSelectionMode) {
-                                    toggleSelection(item.fileId)
-                                } else {
-                                    HapticHelper.performClick(view)
-                                    onMediaSelected(item.fileId)
-                                }
-                            },
-                            onLongClick = {
-                                if (!isSelectionMode) {
-                                    isSelectionMode = true
-                                    toggleSelection(item.fileId)
-                                }
-                            }
-                        )
                     }
                 }
             }
         }
 
-        // Bottom Selection Action Bar (Never collides with photo content, min 48dp touch targets)
+        // Bottom Selection Action Bar
         AnimatedVisibility(
             visible = isSelectionMode && selectedFileIds.isNotEmpty(),
             enter = fadeIn() + slideInVertically { it },
@@ -610,8 +689,9 @@ fun GalleryScreen(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(NeutralSurface, RoundedCornerShape(10.dp))
-                    .border(1.dp, NeutralHairline, RoundedCornerShape(10.dp))
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(Slate900)
+                    .border(1.dp, Slate800, RoundedCornerShape(12.dp))
                     .padding(horizontal = 14.dp, vertical = 8.dp)
             ) {
                 Row(
@@ -621,8 +701,8 @@ fun GalleryScreen(
                 ) {
                     Text(
                         text = "${selectedFileIds.size} SELECTED",
-                        style = MnemosType.Mono11,
-                        color = AccentAmber
+                        style = MnemosType.Mono12,
+                        color = IrisLight
                     )
 
                     Row(
@@ -630,46 +710,30 @@ fun GalleryScreen(
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         // Download Primary CTA
-                        Button(
+                        MnemosButton(
+                            text = if (isBatchDownloading) {
+                                batchProgress?.let { "${it.first}/${it.second}" } ?: "Downloading…"
+                            } else "Download",
                             onClick = { batchDownloadSelected() },
-                            enabled = !isBatchDownloading,
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = AccentAmber,
-                                contentColor = NeutralCanvas
-                            ),
-                            shape = RoundedCornerShape(6.dp)
-                        ) {
-                            if (isBatchDownloading) {
-                                CircularProgressIndicator(
-                                    modifier = Modifier.size(14.dp),
-                                    strokeWidth = 2.dp,
-                                    color = NeutralCanvas
-                                )
-                                batchProgress?.let { (done, total) ->
-                                    Spacer(modifier = Modifier.width(6.dp))
-                                    Text("$done/$total", style = MnemosType.Mono11)
-                                }
-                            } else {
-                                Icon(Icons.Default.CloudDownload, contentDescription = null, modifier = Modifier.size(16.dp))
-                                Spacer(modifier = Modifier.width(6.dp))
-                                Text("Download", style = MnemosType.BodySmall13.copy(fontWeight = FontWeight.Medium))
-                            }
-                        }
+                            variant = ButtonVariant.PRIMARY,
+                            icon = if (!isBatchDownloading) Icons.Default.CloudDownload else null,
+                            isLoading = isBatchDownloading
+                        )
 
-                        // Favorite Toggle Action
+                        // Favorite Action
                         IconButton(
                             onClick = { batchFavoriteSelected(true) },
-                            modifier = Modifier.size(48.dp)
+                            modifier = Modifier.size(44.dp)
                         ) {
-                            Icon(Icons.Default.Favorite, contentDescription = "Favorite", tint = AccentAmber, modifier = Modifier.size(20.dp))
+                            Icon(Icons.Default.Favorite, contentDescription = "Favorite", tint = IrisLight, modifier = Modifier.size(20.dp))
                         }
 
-                        // Trash Action
+                        // Trash Action (Tomato Red)
                         IconButton(
                             onClick = { batchDeleteSelected() },
-                            modifier = Modifier.size(48.dp)
+                            modifier = Modifier.size(44.dp)
                         ) {
-                            Icon(Icons.Default.Delete, contentDescription = "Delete", tint = StatusError, modifier = Modifier.size(20.dp))
+                            Icon(Icons.Default.Delete, contentDescription = "Delete", tint = TomatoRed, modifier = Modifier.size(20.dp))
                         }
                     }
                 }
@@ -681,7 +745,8 @@ fun GalleryScreen(
             ModalBottomSheet(
                 onDismissRequest = { showSortSheet = false },
                 sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
-                containerColor = NeutralSurface
+                containerColor = Slate900,
+                scrimColor = Slate950.copy(alpha = 0.7f)
             ) {
                 Column(
                     modifier = Modifier
@@ -693,7 +758,7 @@ fun GalleryScreen(
                     Text(
                         text = "SORT BY",
                         style = MnemosType.Label11,
-                        color = TextSecondary
+                        color = Slate400
                     )
 
                     SortOption.entries.forEach { option ->
@@ -712,14 +777,14 @@ fun GalleryScreen(
                         ) {
                             Text(
                                 text = option.label,
-                                style = MnemosType.Body15,
-                                color = if (isSelected) AccentAmber else TextPrimary
+                                style = MnemosType.CardTitle15,
+                                color = if (isSelected) IrisLight else Slate50
                             )
                             if (isSelected) {
                                 Box(
                                     modifier = Modifier
                                         .size(6.dp)
-                                        .background(AccentAmber, CircleShape)
+                                        .background(IrisPrimary, CircleShape)
                                 )
                             }
                         }
@@ -732,9 +797,8 @@ fun GalleryScreen(
 
 /**
  * Mnemos Photo Tile:
- * - Zero shimmer / gray skeleton
- * - Instant blur-up to 720p HD
- * - Selected state = 4dp amber inset border + scale(0.96), zero checkmark icon clutter
+ * - Flat surfaces, 4dp Iris selection border without checkmarks
+ * - NodeBadge at top-left for origin device
  * - Video duration in monospace 11sp on subtle charcoal pill
  */
 @OptIn(ExperimentalFoundationApi::class)
@@ -768,7 +832,7 @@ fun GalleryTile(
                 onLongClick = onLongClick
             )
             .then(
-                if (isSelected) Modifier.border(4.dp, AccentAmber) else Modifier
+                if (isSelected) Modifier.border(4.dp, IrisPrimary) else Modifier
             )
     ) {
         AsyncImage(
@@ -782,13 +846,47 @@ fun GalleryTile(
             modifier = Modifier.fillMaxSize()
         )
 
-        // Video duration badge in monospace
+        // Top-Left: Origin Device NodeBadge
+        media.uploadedByDeviceName?.let { devName ->
+            if (devName.isNotBlank() && !isSelectionMode) {
+                NodeBadge(
+                    deviceName = devName,
+                    modifier = Modifier
+                        .align(Alignment.TopStart)
+                        .padding(4.dp)
+                )
+            }
+        }
+
+        // Top-Right: Favorite Indicator (if not in selection mode)
+        if (media.favorite && !isSelectionMode) {
+            Box(
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(4.dp)
+                    .size(16.dp)
+                    .clip(CircleShape)
+                    .background(Slate950.copy(alpha = 0.85f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Favorite,
+                    contentDescription = "Favorite",
+                    tint = IrisLight,
+                    modifier = Modifier.size(10.dp)
+                )
+            }
+        }
+
+        // Bottom-End: Video duration badge in monospace
         if (media.isVideo) {
             Box(
                 modifier = Modifier
                     .align(Alignment.BottomEnd)
                     .padding(4.dp)
-                    .background(Color(0xCC121212), RoundedCornerShape(4.dp))
+                    .clip(RoundedCornerShape(4.dp))
+                    .background(Slate950.copy(alpha = 0.88f))
+                    .border(0.5.dp, Slate800, RoundedCornerShape(4.dp))
                     .padding(horizontal = 5.dp, vertical = 2.dp)
             ) {
                 Row(
@@ -798,7 +896,7 @@ fun GalleryTile(
                     Icon(
                         imageVector = Icons.Default.PlayArrow,
                         contentDescription = "Video",
-                        tint = Color.White,
+                        tint = Slate50,
                         modifier = Modifier.size(11.dp)
                     )
                     media.durationMs?.let { ms ->
@@ -806,49 +904,11 @@ fun GalleryTile(
                         val minutes = (ms / (1000 * 60))
                         Text(
                             text = String.format("%d:%02d", minutes, seconds),
-                            color = Color.White,
-                            style = MnemosType.Mono11
+                            color = Slate50,
+                            style = MnemosType.Mono12.copy(fontSize = 10.sp)
                         )
                     }
                 }
-            }
-        }
-
-        // Uploaded node badge (compact monospace)
-        media.uploadedByDeviceName?.let { devName ->
-            if (devName.isNotBlank() && !isSelectionMode) {
-                Box(
-                    modifier = Modifier
-                        .align(Alignment.TopEnd)
-                        .padding(3.dp)
-                        .background(Color(0xB3121212), RoundedCornerShape(3.dp))
-                        .padding(horizontal = 4.dp, vertical = 1.dp)
-                ) {
-                    Text(
-                        text = devName.uppercase(),
-                        color = Color.White.copy(alpha = 0.85f),
-                        style = MnemosType.Mono11.copy(fontSize = 8.sp)
-                    )
-                }
-            }
-        }
-
-        // Favorite Indicator
-        if (media.favorite && !isSelectionMode) {
-            Box(
-                modifier = Modifier
-                    .align(Alignment.TopStart)
-                    .padding(4.dp)
-                    .size(16.dp)
-                    .background(Color(0x99121212), CircleShape),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Favorite,
-                    contentDescription = "Favorite",
-                    tint = AccentAmber,
-                    modifier = Modifier.size(10.dp)
-                )
             }
         }
     }

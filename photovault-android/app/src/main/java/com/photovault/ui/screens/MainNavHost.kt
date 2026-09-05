@@ -52,13 +52,14 @@ import com.photovault.ui.screens.search.SearchScreen
 import com.photovault.ui.screens.settings.SettingsScreen
 import com.photovault.ui.screens.trash.TrashScreen
 import com.photovault.ui.screens.viewer.MediaViewerScreen
-import com.photovault.ui.theme.AccentAmber
+import com.photovault.ui.theme.IrisLight
+import com.photovault.ui.theme.IrisPrimary
 import com.photovault.ui.theme.MnemosType
-import com.photovault.ui.theme.NeutralCanvas
-import com.photovault.ui.theme.NeutralHairline
-import com.photovault.ui.theme.NeutralSurface
-import com.photovault.ui.theme.TextMuted
-import com.photovault.ui.theme.TextSecondary
+import com.photovault.ui.theme.Slate400
+import com.photovault.ui.theme.Slate600
+import com.photovault.ui.theme.Slate800
+import com.photovault.ui.theme.Slate900
+import com.photovault.ui.theme.Slate950
 
 enum class NavTab(val title: String, val icon: ImageVector) {
     LIBRARY("Library", Icons.Default.Collections),
@@ -86,13 +87,13 @@ fun MainNavHost(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(NeutralCanvas)
+            .background(Slate950)
     ) {
-        // Main Content Area (padding bottom 60dp for bottom bar)
+        // Main Content Area (padding bottom 56dp for bottom bar)
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(bottom = 60.dp)
+                .padding(bottom = 56.dp)
         ) {
             AnimatedContent(
                 targetState = selectedTab,
@@ -124,13 +125,13 @@ fun MainNavHost(
             }
         }
 
-        // Bottom Navigation Bar (4 items max, amber hairline underline on active, 0 filled bubble)
+        // Bottom Navigation Bar (Solid Slate900, 1dp Slate800 top border, Iris underline on active)
         Box(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .fillMaxWidth()
-                .background(NeutralSurface)
-                .border(width = 1.dp, color = NeutralHairline)
+                .background(Slate900)
+                .border(width = 1.dp, color = Slate800)
                 .navigationBarsPadding()
                 .height(56.dp)
         ) {
@@ -172,22 +173,22 @@ fun MainNavHost(
                             Icon(
                                 imageVector = tab.icon,
                                 contentDescription = tab.title,
-                                tint = if (isSelected) AccentAmber else TextMuted,
+                                tint = if (isSelected) IrisLight else Slate400,
                                 modifier = Modifier.size(20.dp)
                             )
                             Spacer(modifier = Modifier.height(3.dp))
                             Text(
                                 text = tab.title,
                                 style = MnemosType.Label11.copy(fontSize = 11.sp),
-                                color = if (isSelected) AccentAmber else TextMuted
+                                color = if (isSelected) IrisLight else Slate400
                             )
                             Spacer(modifier = Modifier.height(2.dp))
-                            // Crisp 1.5dp amber hairline underline on active state (replaces filled pill)
+                            // Crisp 2dp Iris underline on active state
                             Box(
                                 modifier = Modifier
                                     .width(20.dp)
-                                    .height(1.5.dp)
-                                    .background(if (isSelected) AccentAmber else Color.Transparent)
+                                    .height(2.dp)
+                                    .background(if (isSelected) IrisPrimary else Color.Transparent)
                             )
                         }
                     }

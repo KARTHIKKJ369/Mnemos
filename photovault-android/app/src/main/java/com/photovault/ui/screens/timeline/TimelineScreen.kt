@@ -15,7 +15,6 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Sort
 import androidx.compose.material.icons.filled.Refresh
@@ -35,7 +34,6 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -43,14 +41,14 @@ import androidx.compose.ui.unit.sp
 import com.photovault.PhotoVaultApplication
 import com.photovault.data.model.MediaItem
 import com.photovault.ui.components.HapticHelper
-import com.photovault.ui.components.LiquidGlassPill
-import com.photovault.ui.components.liquidGlass
+import com.photovault.ui.components.TimelineSectionHeader
 import com.photovault.ui.screens.gallery.GalleryTile
-import com.photovault.ui.theme.AccentGold
-import com.photovault.ui.theme.DarkBackground
-import com.photovault.ui.theme.TextMuted
-import com.photovault.ui.theme.TextPrimary
-import com.photovault.ui.theme.TextSecondary
+import com.photovault.ui.theme.IrisLight
+import com.photovault.ui.theme.IrisPrimary
+import com.photovault.ui.theme.MnemosType
+import com.photovault.ui.theme.Slate400
+import com.photovault.ui.theme.Slate50
+import com.photovault.ui.theme.Slate950
 import kotlinx.coroutines.launch
 import java.time.format.DateTimeFormatter
 
@@ -97,10 +95,10 @@ fun TimelineScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(DarkBackground)
+            .background(Slate950)
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
-            // Liquid Glass Top Bar
+            // Top Bar
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -115,14 +113,13 @@ fun TimelineScreen(
                     Column {
                         Text(
                             text = "Timeline",
-                            fontSize = 22.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = TextPrimary
+                            style = MnemosType.PageTitle20,
+                            color = Slate50
                         )
                         Text(
                             text = if (sortDescending) "Chronological (Newest)" else "Chronological (Oldest)",
-                            fontSize = 11.sp,
-                            color = TextMuted
+                            style = MnemosType.Mono12,
+                            color = Slate400
                         )
                     }
 
@@ -138,12 +135,12 @@ fun TimelineScreen(
                             Icon(
                                 imageVector = Icons.AutoMirrored.Filled.Sort,
                                 contentDescription = "Toggle Sort Order",
-                                tint = AccentGold,
+                                tint = IrisLight,
                                 modifier = Modifier.size(20.dp)
                             )
                         }
 
-                        // Density switcher (2 -> 3 -> 4 -> 5 -> 2)
+                        // Density switcher
                         IconButton(onClick = {
                             HapticHelper.performSelection(view)
                             val nextCols = if (columns >= 5) 2 else columns + 1
@@ -152,7 +149,7 @@ fun TimelineScreen(
                             Icon(
                                 imageVector = Icons.Default.ViewModule,
                                 contentDescription = "Grid Density",
-                                tint = TextSecondary,
+                                tint = Slate400,
                                 modifier = Modifier.size(20.dp)
                             )
                         }
@@ -165,7 +162,7 @@ fun TimelineScreen(
                             Icon(
                                 imageVector = Icons.Default.Refresh,
                                 contentDescription = "Refresh",
-                                tint = TextSecondary,
+                                tint = Slate400,
                                 modifier = Modifier.size(20.dp)
                             )
                         }
@@ -178,56 +175,31 @@ fun TimelineScreen(
                     modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.Center
                 ) {
-                    CircularProgressIndicator(color = AccentGold)
+                    CircularProgressIndicator(color = IrisPrimary, strokeWidth = 2.dp)
                 }
             } else if (mediaList.isEmpty()) {
                 Box(
                     modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text("No timeline items found in vault", color = TextMuted, fontSize = 14.sp)
+                    Text("No timeline items found in vault", color = Slate400, style = MnemosType.BodySecondary13)
                 }
             } else {
                 LazyVerticalGrid(
                     columns = GridCells.Fixed(columns),
-                    contentPadding = PaddingValues(
-                        start = 1.dp,
-                        end = 1.dp,
-                        top = 4.dp,
-                        bottom = 12.dp
-                    ),
-                    horizontalArrangement = Arrangement.spacedBy(1.5.dp),
-                    verticalArrangement = Arrangement.spacedBy(1.5.dp),
+                    contentPadding = PaddingValues(0.dp),
+                    horizontalArrangement = Arrangement.spacedBy(1.dp),
+                    verticalArrangement = Arrangement.spacedBy(1.dp),
                     modifier = Modifier.fillMaxSize()
                 ) {
                     groupedMedia.forEach { (dateHeader, itemsInDay) ->
-                        // Section Header with Liquid Glass capsule
                         item(span = { GridItemSpan(columns) }) {
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(horizontal = 14.dp, vertical = 10.dp)
-                            ) {
-                                Box(
-                                    modifier = Modifier
-                                        .liquidGlass(
-                                            shape = RoundedCornerShape(14.dp),
-                                            backgroundColor = Color(0xCC111522),
-                                            borderAlphaTop = 0.20f
-                                        )
-                                        .padding(horizontal = 14.dp, vertical = 6.dp)
-                                ) {
-                                    Text(
-                                        text = formatDateHeader(dateHeader),
-                                        color = TextPrimary,
-                                        fontSize = 13.sp,
-                                        fontWeight = FontWeight.SemiBold
-                                    )
-                                }
-                            }
+                            TimelineSectionHeader(
+                                title = formatDateHeader(dateHeader),
+                                itemCount = itemsInDay.size
+                            )
                         }
 
-                        // Media Tiles
                         items(itemsInDay, key = { it.fileId }) { item ->
                             GalleryTile(
                                 media = item,

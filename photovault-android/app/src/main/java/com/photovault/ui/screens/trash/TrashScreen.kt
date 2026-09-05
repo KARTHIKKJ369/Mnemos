@@ -8,6 +8,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -24,34 +25,20 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.AutoDelete
-import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Checklist
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.DeleteForever
 import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material.icons.filled.Restore
 import androidx.compose.material.icons.filled.RestoreFromTrash
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -71,21 +58,22 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.photovault.PhotoVaultApplication
 import com.photovault.data.model.MediaItem
+import com.photovault.ui.components.ButtonVariant
 import com.photovault.ui.components.HapticHelper
-import com.photovault.ui.components.LiquidGlassCard
-import com.photovault.ui.components.liquidGlass
+import com.photovault.ui.components.MnemosButton
 import com.photovault.ui.screens.gallery.GalleryTile
-import com.photovault.ui.theme.AccentGold
-import com.photovault.ui.theme.DarkBackground
-import com.photovault.ui.theme.DarkSurfaceVariant
-import com.photovault.ui.theme.DangerRed
-import com.photovault.ui.theme.EmeraldGreen
-import com.photovault.ui.theme.TextMuted
-import com.photovault.ui.theme.TextPrimary
-import com.photovault.ui.theme.TextSecondary
+import com.photovault.ui.theme.IrisLight
+import com.photovault.ui.theme.IrisPrimary
+import com.photovault.ui.theme.MnemosType
+import com.photovault.ui.theme.Slate200
+import com.photovault.ui.theme.Slate400
+import com.photovault.ui.theme.Slate50
+import com.photovault.ui.theme.Slate800
+import com.photovault.ui.theme.Slate900
+import com.photovault.ui.theme.Slate950
+import com.photovault.ui.theme.TomatoRed
 import kotlinx.coroutines.launch
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TrashScreen(
     onNavigateBack: () -> Unit,
@@ -168,7 +156,7 @@ fun TrashScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(DarkBackground)
+            .background(Slate950)
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
             // Top Bar
@@ -188,19 +176,18 @@ fun TrashScreen(
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         IconButton(onClick = onNavigateBack) {
-                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = TextPrimary)
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Slate50)
                         }
                         Column {
                             Text(
                                 text = "Trash",
-                                fontSize = 20.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = TextPrimary
+                                style = MnemosType.PageTitle20,
+                                color = Slate50
                             )
                             Text(
                                 text = "${trashList.size} deleted items",
-                                fontSize = 11.sp,
-                                color = TextMuted
+                                style = MnemosType.Mono12,
+                                color = Slate400
                             )
                         }
                     }
@@ -215,7 +202,7 @@ fun TrashScreen(
                                 Icon(
                                     imageVector = Icons.Default.DeleteForever,
                                     contentDescription = "Empty Trash",
-                                    tint = DangerRed
+                                    tint = TomatoRed
                                 )
                             }
 
@@ -228,7 +215,7 @@ fun TrashScreen(
                                 Icon(
                                     imageVector = Icons.Default.Checklist,
                                     contentDescription = "Select",
-                                    tint = if (isSelectionMode) AccentGold else TextSecondary
+                                    tint = if (isSelectionMode) IrisLight else Slate400
                                 )
                             }
                         }
@@ -238,7 +225,7 @@ fun TrashScreen(
                             HapticHelper.performClick(view)
                             loadTrash()
                         }) {
-                            Icon(Icons.Default.Refresh, contentDescription = "Refresh", tint = TextSecondary)
+                            Icon(Icons.Default.Refresh, contentDescription = "Refresh", tint = Slate400)
                         }
                     }
                 }
@@ -249,7 +236,7 @@ fun TrashScreen(
                     modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.Center
                 ) {
-                    CircularProgressIndicator(color = AccentGold)
+                    CircularProgressIndicator(color = IrisPrimary, strokeWidth = 2.dp)
                 }
             } else if (trashList.isEmpty()) {
                 Box(
@@ -263,24 +250,19 @@ fun TrashScreen(
                         Icon(
                             imageVector = Icons.Default.AutoDelete,
                             contentDescription = null,
-                            tint = TextMuted,
-                            modifier = Modifier.size(48.dp)
+                            tint = Slate400,
+                            modifier = Modifier.size(44.dp)
                         )
-                        Text("Trash is Empty", color = TextPrimary, fontSize = 16.sp, fontWeight = FontWeight.Bold)
-                        Text("Deleted photos and videos will appear here", color = TextMuted, fontSize = 13.sp)
+                        Text("Trash is Empty", color = Slate50, style = MnemosType.CardTitle15)
+                        Text("Deleted photos and videos will appear here", color = Slate400, style = MnemosType.BodySecondary13)
                     }
                 }
             } else {
                 LazyVerticalGrid(
                     columns = GridCells.Fixed(columns),
-                    contentPadding = PaddingValues(
-                        start = 1.dp,
-                        end = 1.dp,
-                        top = 6.dp,
-                        bottom = if (isSelectionMode) 100.dp else 16.dp
-                    ),
-                    horizontalArrangement = Arrangement.spacedBy(1.5.dp),
-                    verticalArrangement = Arrangement.spacedBy(1.5.dp),
+                    contentPadding = PaddingValues(0.dp),
+                    horizontalArrangement = Arrangement.spacedBy(1.dp),
+                    verticalArrangement = Arrangement.spacedBy(1.dp),
                     modifier = Modifier.fillMaxSize()
                 ) {
                     items(trashList, key = { it.fileId }) { item ->
@@ -311,56 +293,36 @@ fun TrashScreen(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .navigationBarsPadding()
-                .padding(bottom = 16.dp, start = 16.dp, end = 16.dp)
+                .padding(bottom = 12.dp, start = 14.dp, end = 14.dp)
         ) {
-            LiquidGlassCard(
-                glowAccent = EmeraldGreen,
-                backgroundColor = Color(0xF2161A26),
-                shape = RoundedCornerShape(26.dp),
-                modifier = Modifier.fillMaxWidth()
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(Slate900)
+                    .border(1.dp, Slate800, RoundedCornerShape(12.dp))
+                    .padding(horizontal = 14.dp, vertical = 10.dp)
             ) {
                 Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 10.dp),
+                    modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    // Restore Button
-                    Button(
+                    // Restore Button (Iris)
+                    MnemosButton(
+                        text = "Restore (${selectedFileIds.size})",
                         onClick = { restoreSelected() },
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = EmeraldGreen,
-                            contentColor = Color.Black
-                        ),
-                        shape = RoundedCornerShape(14.dp)
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(6.dp)
-                        ) {
-                            Icon(Icons.Default.RestoreFromTrash, contentDescription = null, modifier = Modifier.size(18.dp))
-                            Text("Restore (${selectedFileIds.size})", fontWeight = FontWeight.Bold, fontSize = 12.sp)
-                        }
-                    }
+                        variant = ButtonVariant.PRIMARY,
+                        icon = Icons.Default.RestoreFromTrash
+                    )
 
-                    // Delete Forever Button
-                    Button(
+                    // Delete Forever Button (Tomato Red)
+                    MnemosButton(
+                        text = "Delete Forever",
                         onClick = { permanentDeleteSelected() },
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = DangerRed,
-                            contentColor = Color.White
-                        ),
-                        shape = RoundedCornerShape(14.dp)
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(6.dp)
-                        ) {
-                            Icon(Icons.Default.DeleteForever, contentDescription = null, modifier = Modifier.size(18.dp))
-                            Text("Delete Forever", fontWeight = FontWeight.Bold, fontSize = 12.sp)
-                        }
-                    }
+                        variant = ButtonVariant.DESTRUCTIVE,
+                        icon = Icons.Default.DeleteForever
+                    )
                 }
             }
         }
@@ -370,30 +332,28 @@ fun TrashScreen(
             AlertDialog(
                 onDismissRequest = { showEmptyTrashDialog = false },
                 title = {
-                    Text("Empty Entire Trash?", color = TextPrimary, fontWeight = FontWeight.Bold)
+                    Text("Empty Entire Trash?", color = Slate50, style = MnemosType.CardTitle15)
                 },
                 text = {
                     Text(
                         "All ${trashList.size} items in the trash will be permanently deleted from the vault server. This action cannot be undone.",
-                        color = TextSecondary,
-                        fontSize = 13.sp
+                        color = Slate400,
+                        style = MnemosType.BodySecondary13
                     )
                 },
                 confirmButton = {
-                    Button(
+                    MnemosButton(
+                        text = "Empty Trash Permanently",
                         onClick = { emptyEntireTrash() },
-                        colors = ButtonDefaults.buttonColors(containerColor = DangerRed),
-                        shape = RoundedCornerShape(10.dp)
-                    ) {
-                        Text("Empty Trash Permanently", color = Color.White, fontWeight = FontWeight.Bold)
-                    }
+                        variant = ButtonVariant.DESTRUCTIVE
+                    )
                 },
                 dismissButton = {
                     TextButton(onClick = { showEmptyTrashDialog = false }) {
-                        Text("Cancel", color = TextMuted)
+                        Text("Cancel", color = Slate400)
                     }
                 },
-                containerColor = DarkSurfaceVariant
+                containerColor = Slate900
             )
         }
     }

@@ -41,6 +41,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalView
@@ -52,14 +53,16 @@ import com.photovault.PhotoVaultApplication
 import com.photovault.data.model.MediaItem
 import com.photovault.ui.components.HapticHelper
 import com.photovault.ui.screens.gallery.GalleryTile
-import com.photovault.ui.theme.AccentAmber
+import com.photovault.ui.theme.IrisLight
+import com.photovault.ui.theme.IrisPrimary
+import com.photovault.ui.theme.IrisSubtle
 import com.photovault.ui.theme.MnemosType
-import com.photovault.ui.theme.NeutralCanvas
-import com.photovault.ui.theme.NeutralHairline
-import com.photovault.ui.theme.NeutralSurface
-import com.photovault.ui.theme.TextMuted
-import com.photovault.ui.theme.TextPrimary
-import com.photovault.ui.theme.TextSecondary
+import com.photovault.ui.theme.Slate200
+import com.photovault.ui.theme.Slate400
+import com.photovault.ui.theme.Slate50
+import com.photovault.ui.theme.Slate800
+import com.photovault.ui.theme.Slate900
+import com.photovault.ui.theme.Slate950
 import kotlinx.coroutines.launch
 
 @Composable
@@ -109,7 +112,7 @@ fun SearchScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(NeutralCanvas)
+            .background(Slate950)
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
             // Search Input Header
@@ -121,25 +124,26 @@ fun SearchScreen(
             ) {
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     Text(
-                        text = "SEARCH",
-                        style = MnemosType.Label11,
-                        color = TextSecondary
+                        text = "Search",
+                        style = MnemosType.PageTitle20,
+                        color = Slate50
                     )
 
                     // Text Input Bar with Hairline Border
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(48.dp)
-                            .background(NeutralSurface, RoundedCornerShape(8.dp))
-                            .border(1.dp, NeutralHairline, RoundedCornerShape(8.dp))
+                            .height(46.dp)
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(Slate900)
+                            .border(1.dp, Slate800, RoundedCornerShape(10.dp))
                             .padding(horizontal = 12.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Icon(
                             imageVector = Icons.Default.Search,
                             contentDescription = null,
-                            tint = TextMuted,
+                            tint = Slate400,
                             modifier = Modifier.size(18.dp)
                         )
 
@@ -149,9 +153,9 @@ fun SearchScreen(
                             modifier = Modifier
                                 .weight(1f)
                                 .padding(horizontal = 10.dp),
-                            textStyle = MnemosType.Body15.copy(color = TextPrimary),
+                            textStyle = MnemosType.CardTitle15.copy(color = Slate50),
                             singleLine = true,
-                            cursorBrush = SolidColor(AccentAmber),
+                            cursorBrush = SolidColor(IrisPrimary),
                             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
                             keyboardActions = KeyboardActions(onSearch = {
                                 focusManager.clearFocus()
@@ -161,8 +165,8 @@ fun SearchScreen(
                                 if (searchQuery.isEmpty()) {
                                     Text(
                                         text = "Search filename, date, node…",
-                                        style = MnemosType.Body15,
-                                        color = TextMuted
+                                        style = MnemosType.CardTitle15,
+                                        color = Slate400
                                     )
                                 }
                                 innerTextField()
@@ -180,14 +184,14 @@ fun SearchScreen(
                                 Icon(
                                     imageVector = Icons.Default.Clear,
                                     contentDescription = "Clear",
-                                    tint = TextSecondary,
+                                    tint = Slate400,
                                     modifier = Modifier.size(16.dp)
                                 )
                             }
                         }
                     }
 
-                    // Filter Row (Restrained hairline pills)
+                    // Filter Row (Slate900 pills with 1dp Slate800 border)
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -203,15 +207,9 @@ fun SearchScreen(
                             val isSelected = selectedFilter == key
                             Box(
                                 modifier = Modifier
-                                    .background(
-                                        if (isSelected) AccentAmber.copy(alpha = 0.15f) else NeutralSurface,
-                                        RoundedCornerShape(6.dp)
-                                    )
-                                    .border(
-                                        1.dp,
-                                        if (isSelected) AccentAmber else NeutralHairline,
-                                        RoundedCornerShape(6.dp)
-                                    )
+                                    .clip(RoundedCornerShape(6.dp))
+                                    .background(if (isSelected) IrisSubtle else Slate900)
+                                    .border(1.dp, if (isSelected) IrisPrimary else Slate800, RoundedCornerShape(6.dp))
                                     .clickable {
                                         HapticHelper.performClick(view)
                                         selectedFilter = key
@@ -221,7 +219,7 @@ fun SearchScreen(
                                 Text(
                                     text = label,
                                     style = MnemosType.Label11,
-                                    color = if (isSelected) AccentAmber else TextSecondary
+                                    color = if (isSelected) IrisLight else Slate400
                                 )
                             }
                         }
@@ -237,7 +235,7 @@ fun SearchScreen(
                     modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.Center
                 ) {
-                    CircularProgressIndicator(color = AccentAmber, strokeWidth = 2.dp)
+                    CircularProgressIndicator(color = IrisPrimary, strokeWidth = 2.dp)
                 }
             } else if (results.isEmpty()) {
                 Box(
@@ -253,15 +251,15 @@ fun SearchScreen(
                         Text(
                             text = if (searchQuery.isBlank()) "INDEXED VAULT" else "NO MATCHES",
                             style = MnemosType.Label11,
-                            color = TextMuted
+                            color = Slate400
                         )
                         Text(
                             text = if (searchQuery.isBlank())
                                 "Search across all paired nodes by filename, file type, or capture date"
                             else
                                 "No media found matching \"$searchQuery\"",
-                            style = MnemosType.BodySmall13,
-                            color = TextSecondary,
+                            style = MnemosType.BodySecondary13,
+                            color = Slate400,
                             textAlign = androidx.compose.ui.text.style.TextAlign.Center
                         )
                     }

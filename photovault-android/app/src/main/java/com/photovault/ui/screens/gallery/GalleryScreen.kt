@@ -1,6 +1,9 @@
 package com.photovault.ui.screens.gallery
 
 import android.widget.Toast
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
@@ -9,11 +12,15 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
@@ -21,7 +28,10 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.CloudDownload
+import androidx.compose.material.icons.filled.ArrowDownward
+import androidx.compose.material.icons.filled.ArrowUpward
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Computer
 import androidx.compose.material.icons.filled.Devices
 import androidx.compose.material.icons.filled.Favorite
@@ -31,18 +41,22 @@ import androidx.compose.material.icons.filled.PhoneAndroid
 import androidx.compose.material.icons.filled.PhoneIphone
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material.icons.filled.Smartphone
+import androidx.compose.material.icons.filled.Sort
 import androidx.compose.material.icons.filled.ViewModule
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -55,6 +69,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
@@ -76,6 +91,15 @@ import com.photovault.ui.theme.TextPrimary
 import com.photovault.ui.theme.TextSecondary
 import kotlinx.coroutines.launch
 
+enum class SortOption(val label: String, val sortField: String, val sortOrder: String) {
+    NEWEST("Newest First", "taken_at", "desc"),
+    OLDEST("Oldest First", "taken_at", "asc"),
+    LARGEST("Largest Size", "size_bytes", "desc"),
+    SMALLEST("Smallest Size", "size_bytes", "asc"),
+    NAME_AZ("Name (A to Z)", "filename", "asc"),
+    NAME_ZA("Name (Z to A)", "filename", "desc")
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun GalleryScreen(
@@ -95,6 +119,8 @@ fun GalleryScreen(
     var isLoading by remember { mutableStateOf(true) }
     var selectedTypeFilter by remember { mutableStateOf("all") } // "all", "photos", "videos", "favorites"
     var selectedDeviceFilter by remember { mutableStateOf(initialDeviceId ?: "") } // "" = all, or deviceId
+    var currentSort by remember { mutableStateOf(SortOption.NEWEST) }
+    var showSortSheet by remember { mutableStateOf(false) }
 
     fun loadData() {
         isLoading = true
@@ -103,7 +129,7 @@ fun GalleryScreen(
             val devResult = app.apiClient.fetchDevices()
             devResult.onSuccess { devices = it }
 
-            // Load media with filters
+            // Load media with filters & sort
             val mimeFilter = when (selectedTypeFilter) {
                 "photos" -> "image/"
                 "videos" -> "video/"
@@ -113,7 +139,9 @@ fun GalleryScreen(
             val result = app.apiClient.fetchMedia(
                 mimeType = mimeFilter,
                 favoriteOnly = favoriteOnly,
-                deviceId = selectedDeviceFilter
+                deviceId = selectedDeviceFilter,
+                sort = currentSort.sortField,
+                order = currentSort.sortOrder
             )
             isLoading = false
             result.onSuccess {
@@ -122,7 +150,7 @@ fun GalleryScreen(
         }
     }
 
-    LaunchedEffect(selectedTypeFilter, selectedDeviceFilter) {
+    LaunchedEffect(selectedTypeFilter, selectedDeviceFilter, currentSort) {
         loadData()
     }
 
@@ -138,8 +166,8 @@ fun GalleryScreen(
                             color = TextPrimary
                         )
                         Text(
-                            text = "${mediaList.size} items" + if (selectedDeviceFilter.isNotEmpty()) {
-                                val devName = devices.find { it.id == selectedDeviceFilter }?.name ?: "Filtered Device"
+                            text = "${mediaList.size} items • ${currentSort.label}" + if (selectedDeviceFilter.isNotEmpty()) {
+                                val devName = devices.find { it.id == selectedDeviceFilter }?.name ?: "Filtered"
                                 " • $devName"
                             } else "",
                             fontSize = 11.sp,
@@ -148,6 +176,18 @@ fun GalleryScreen(
                     }
                 },
                 actions = {
+                    // Sort Sheet Trigger
+                    IconButton(onClick = {
+                        HapticHelper.performClick(view)
+                        showSortSheet = true
+                    }) {
+                        Icon(
+                            imageVector = Icons.Default.Sort,
+                            contentDescription = "Sort Options",
+                            tint = AccentGold
+                        )
+                    }
+
                     // Density switcher (2 -> 3 -> 4 -> 5 -> 2)
                     IconButton(onClick = {
                         HapticHelper.performSelection(view)
@@ -194,7 +234,7 @@ fun GalleryScreen(
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 listOf(
-                    "all" to "All",
+                    "all" to "All Media",
                     "photos" to "Photos",
                     "videos" to "Videos",
                     "favorites" to "Favorites"
@@ -206,7 +246,7 @@ fun GalleryScreen(
                             HapticHelper.performClick(view)
                             selectedTypeFilter = key
                         },
-                        label = { Text(label, fontSize = 12.sp) },
+                        label = { Text(label, fontSize = 12.sp, fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal) },
                         colors = FilterChipDefaults.filterChipColors(
                             selectedContainerColor = AccentGold,
                             selectedLabelColor = Color.Black,
@@ -310,10 +350,10 @@ fun GalleryScreen(
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        Text("No media found in vault", color = TextPrimary, fontSize = 15.sp, fontWeight = FontWeight.Bold)
+                        Text("No media found in vault", color = TextPrimary, fontSize = 16.sp, fontWeight = FontWeight.Bold)
                         Text(
-                            if (selectedDeviceFilter.isNotEmpty()) "No files found for this selected device"
-                            else "Upload or backup photos to populate your vault",
+                            if (selectedDeviceFilter.isNotEmpty()) "No files uploaded by this device"
+                            else "Upload or backup photos to start viewing",
                             color = TextMuted,
                             fontSize = 13.sp
                         )
@@ -336,6 +376,80 @@ fun GalleryScreen(
                             }
                         )
                     }
+                }
+            }
+        }
+
+        // Sort Options Modal Bottom Sheet
+        if (showSortSheet) {
+            ModalBottomSheet(
+                onDismissRequest = { showSortSheet = false },
+                sheetState = rememberModalBottomSheetState(),
+                containerColor = DarkSurfaceVariant
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .navigationBarsPadding()
+                        .padding(20.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "Sort Media By",
+                            color = TextPrimary,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 18.sp
+                        )
+                        IconButton(onClick = { showSortSheet = false }) {
+                            Icon(Icons.Default.Close, contentDescription = "Close", tint = TextMuted)
+                        }
+                    }
+
+                    SortOption.entries.forEach { option ->
+                        val isSelected = currentSort == option
+                        Card(
+                            onClick = {
+                                HapticHelper.performSelection(view)
+                                currentSort = option
+                                showSortSheet = false
+                            },
+                            colors = CardDefaults.cardColors(
+                                containerColor = if (isSelected) AccentGold.copy(alpha = 0.15f) else DarkBackground
+                            ),
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 16.dp, vertical = 14.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = option.label,
+                                    color = if (isSelected) AccentGold else TextPrimary,
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                    fontSize = 14.sp
+                                )
+                                if (isSelected) {
+                                    Icon(
+                                        imageVector = Icons.Default.Check,
+                                        contentDescription = null,
+                                        tint = AccentGold,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(16.dp))
                 }
             }
         }
@@ -409,12 +523,12 @@ fun GalleryTile(
                     modifier = Modifier
                         .align(Alignment.TopEnd)
                         .padding(4.dp)
-                        .background(Color.Black.copy(alpha = 0.6f), RoundedCornerShape(4.dp))
-                        .padding(horizontal = 4.dp, vertical = 2.dp)
+                        .background(Color.Black.copy(alpha = 0.65f), RoundedCornerShape(4.dp))
+                        .padding(horizontal = 5.dp, vertical = 2.dp)
                 ) {
                     Text(
                         text = devName,
-                        color = Color.White.copy(alpha = 0.85f),
+                        color = Color.White.copy(alpha = 0.9f),
                         fontSize = 8.sp,
                         fontWeight = FontWeight.Medium,
                         maxLines = 1

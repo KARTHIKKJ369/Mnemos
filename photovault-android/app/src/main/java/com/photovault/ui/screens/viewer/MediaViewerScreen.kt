@@ -1,9 +1,16 @@
 package com.photovault.ui.screens.viewer
 
 import android.widget.Toast
+import androidx.activity.compose.BackHandler
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -13,8 +20,10 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -55,6 +64,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
@@ -83,6 +93,11 @@ fun MediaViewerScreen(
     initialFileId: String,
     onClose: () -> Unit
 ) {
+    // Intercept hardware/gesture back press to close the viewer instead of the app!
+    BackHandler(enabled = true) {
+        onClose()
+    }
+
     val app = PhotoVaultApplication.instance
     val context = LocalContext.current
     val view = LocalView.current
@@ -91,6 +106,7 @@ fun MediaViewerScreen(
     var mediaList by remember { mutableStateOf<List<MediaItem>>(emptyList()) }
     var showInfoSheet by remember { mutableStateOf(false) }
     var isDownloading by remember { mutableStateOf(false) }
+    var controlsVisible by remember { mutableStateOf(true) }
 
     LaunchedEffect(Unit) {
         val result = app.apiClient.fetchMedia()
@@ -155,7 +171,15 @@ fun MediaViewerScreen(
         // Main Media Horizontal Pager
         HorizontalPager(
             state = pagerState,
-            modifier = Modifier.fillMaxSize()
+            modifier = Modifier
+                .fillMaxSize()
+                .pointerInput(Unit) {
+                    detectTapGestures(
+                        onTap = {
+                            controlsVisible = !controlsVisible
+                        }
+                    )
+                }
         ) { page ->
             val item = mediaList[page]
             if (item.isVideo) {
@@ -168,189 +192,207 @@ fun MediaViewerScreen(
                 ProgressiveMediaImage(
                     media = item,
                     modifier = Modifier.fillMaxSize(),
-                    isZoomable = true
+                    isZoomable = true,
+                    onTap = {
+                        controlsVisible = !controlsVisible
+                    }
                 )
             }
         }
 
-        // Top Floating Pill Bar
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(top = 48.dp, start = 16.dp, end = 16.dp)
-                .align(Alignment.TopCenter),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
+        // Top Floating Pill Bar (with proper statusBarsPadding)
+        AnimatedVisibility(
+            visible = controlsVisible,
+            enter = fadeIn() + slideInVertically { -it },
+            exit = fadeOut() + slideOutVertically { -it },
+            modifier = Modifier.align(Alignment.TopCenter)
         ) {
-            // Back Button
-            IconButton(
-                onClick = {
-                    HapticHelper.performClick(view)
-                    onClose()
-                },
-                modifier = Modifier
-                    .size(40.dp)
-                    .background(Color.Black.copy(alpha = 0.6f), CircleShape)
-            ) {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                    contentDescription = "Back",
-                    tint = Color.White
-                )
-            }
-
-            // Filename & Device pill
-            Box(
-                modifier = Modifier
-                    .background(Color.Black.copy(alpha = 0.6f), RoundedCornerShape(20.dp))
-                    .padding(horizontal = 14.dp, vertical = 8.dp)
-            ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(
-                        text = currentMedia.filename,
-                        color = Color.White,
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Medium,
-                        maxLines = 1
-                    )
-                    currentMedia.uploadedByDeviceName?.let { devName ->
-                        if (devName.isNotBlank()) {
-                            Text(
-                                text = "From $devName",
-                                color = AccentGold,
-                                fontSize = 9.sp,
-                                fontWeight = FontWeight.Normal
-                            )
-                        }
-                    }
-                }
-            }
-
-            // Actions Pill (Download, Favorite, Info, Delete)
             Row(
                 modifier = Modifier
-                    .background(Color.Black.copy(alpha = 0.6f), RoundedCornerShape(20.dp))
-                    .padding(horizontal = 4.dp),
+                    .fillMaxWidth()
+                    .statusBarsPadding()
+                    .padding(horizontal = 16.dp, vertical = 10.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Download Button
+                // Back Button
                 IconButton(
-                    onClick = { downloadCurrent() },
-                    enabled = !isDownloading
+                    onClick = {
+                        HapticHelper.performClick(view)
+                        onClose()
+                    },
+                    modifier = Modifier
+                        .size(42.dp)
+                        .background(Color.Black.copy(alpha = 0.7f), CircleShape)
                 ) {
-                    if (isDownloading) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(16.dp),
-                            strokeWidth = 2.dp,
-                            color = AccentGold
-                        )
-                    } else {
-                        Icon(
-                            imageVector = Icons.Default.Download,
-                            contentDescription = "Download to Device",
-                            tint = AccentGold,
-                            modifier = Modifier.size(18.dp)
-                        )
-                    }
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                        contentDescription = "Back",
+                        tint = Color.White
+                    )
                 }
 
-                // Favorite Button
-                IconButton(onClick = {
-                    HapticHelper.performClick(view)
-                    val newFav = !currentMedia.favorite
-                    scope.launch {
-                        app.apiClient.setFavorite(currentMedia.fileId, newFav)
-                        mediaList = mediaList.map {
-                            if (it.fileId == currentMedia.fileId) it.copy(favorite = newFav) else it
+                // Filename & Device pill
+                Box(
+                    modifier = Modifier
+                        .background(Color.Black.copy(alpha = 0.7f), RoundedCornerShape(20.dp))
+                        .padding(horizontal = 14.dp, vertical = 8.dp)
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(
+                            text = currentMedia.filename,
+                            color = Color.White,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            maxLines = 1
+                        )
+                        currentMedia.uploadedByDeviceName?.let { devName ->
+                            if (devName.isNotBlank()) {
+                                Text(
+                                    text = "From $devName",
+                                    color = AccentGold,
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.Medium
+                                )
+                            }
                         }
                     }
-                }) {
-                    Icon(
-                        imageVector = if (currentMedia.favorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
-                        contentDescription = "Favorite",
-                        tint = if (currentMedia.favorite) DangerRed else Color.White,
-                        modifier = Modifier.size(18.dp)
-                    )
                 }
 
-                // Info Sheet Button
-                IconButton(onClick = {
-                    HapticHelper.performClick(view)
-                    showInfoSheet = true
-                }) {
-                    Icon(
-                        imageVector = Icons.Default.Info,
-                        contentDescription = "Info",
-                        tint = Color.White,
-                        modifier = Modifier.size(18.dp)
-                    )
-                }
-
-                // Delete Button
-                IconButton(onClick = {
-                    HapticHelper.vibrateWarning(context)
-                    scope.launch {
-                        app.apiClient.deleteMedia(currentMedia.fileId)
-                        onClose()
+                // Actions Pill (Download, Favorite, Info, Delete)
+                Row(
+                    modifier = Modifier
+                        .background(Color.Black.copy(alpha = 0.7f), RoundedCornerShape(20.dp))
+                        .padding(horizontal = 4.dp, vertical = 2.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    // Download Button
+                    IconButton(
+                        onClick = { downloadCurrent() },
+                        enabled = !isDownloading
+                    ) {
+                        if (isDownloading) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(16.dp),
+                                strokeWidth = 2.dp,
+                                color = AccentGold
+                            )
+                        } else {
+                            Icon(
+                                imageVector = Icons.Default.Download,
+                                contentDescription = "Download to Device",
+                                tint = AccentGold,
+                                modifier = Modifier.size(19.dp)
+                            )
+                        }
                     }
-                }) {
-                    Icon(
-                        imageVector = Icons.Default.Delete,
-                        contentDescription = "Delete",
-                        tint = DangerRed,
-                        modifier = Modifier.size(18.dp)
-                    )
+
+                    // Favorite Button
+                    IconButton(onClick = {
+                        HapticHelper.performClick(view)
+                        val newFav = !currentMedia.favorite
+                        scope.launch {
+                            app.apiClient.setFavorite(currentMedia.fileId, newFav)
+                            mediaList = mediaList.map {
+                                if (it.fileId == currentMedia.fileId) it.copy(favorite = newFav) else it
+                            }
+                        }
+                    }) {
+                        Icon(
+                            imageVector = if (currentMedia.favorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+                            contentDescription = "Favorite",
+                            tint = if (currentMedia.favorite) DangerRed else Color.White,
+                            modifier = Modifier.size(19.dp)
+                        )
+                    }
+
+                    // Info Sheet Button
+                    IconButton(onClick = {
+                        HapticHelper.performClick(view)
+                        showInfoSheet = true
+                    }) {
+                        Icon(
+                            imageVector = Icons.Default.Info,
+                            contentDescription = "Info",
+                            tint = Color.White,
+                            modifier = Modifier.size(19.dp)
+                        )
+                    }
+
+                    // Delete Button
+                    IconButton(onClick = {
+                        HapticHelper.vibrateWarning(context)
+                        scope.launch {
+                            app.apiClient.deleteMedia(currentMedia.fileId)
+                            onClose()
+                        }
+                    }) {
+                        Icon(
+                            imageVector = Icons.Default.Delete,
+                            contentDescription = "Delete",
+                            tint = DangerRed,
+                            modifier = Modifier.size(19.dp)
+                        )
+                    }
                 }
             }
         }
 
-        // Bottom Filmstrip Carousel
+        // Bottom Filmstrip Carousel (with proper navigationBarsPadding)
         if (mediaList.size > 1) {
-            Box(
+            AnimatedVisibility(
+                visible = controlsVisible,
+                enter = fadeIn() + slideInVertically { it },
+                exit = fadeOut() + slideOutVertically { it },
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
-                    .padding(bottom = 32.dp, start = 16.dp, end = 16.dp)
-                    .background(Color.Black.copy(alpha = 0.65f), RoundedCornerShape(16.dp))
-                    .padding(horizontal = 8.dp, vertical = 8.dp)
+                    .navigationBarsPadding()
+                    .padding(bottom = 16.dp, start = 16.dp, end = 16.dp)
             ) {
-                LazyRow(
-                    state = filmstripListState,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                Box(
+                    modifier = Modifier
+                        .background(Color.Black.copy(alpha = 0.75f), RoundedCornerShape(18.dp))
+                        .padding(horizontal = 10.dp, vertical = 8.dp)
                 ) {
-                    itemsIndexed(mediaList, key = { _, item -> item.fileId }) { index, item ->
-                        val isSelected = pagerState.currentPage == index
-                        val thumbUrl = remember(item.fileId) {
-                            if (item.thumbnailAvailable) app.apiClient.getThumbnailUrl(item.fileId)
-                            else app.apiClient.getOriginalUrl(item.fileId)
-                        }
+                    LazyRow(
+                        state = filmstripListState,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        itemsIndexed(mediaList, key = { _, item -> item.fileId }) { index, item ->
+                            val isSelected = pagerState.currentPage == index
+                            val thumbUrl = remember(item.fileId) {
+                                if (item.thumbnailAvailable) app.apiClient.getThumbnailUrl(item.fileId)
+                                else app.apiClient.getOriginalUrl(item.fileId)
+                            }
 
-                        Box(
-                            modifier = Modifier
-                                .size(if (isSelected) 48.dp else 40.dp)
-                                .clip(RoundedCornerShape(8.dp))
-                                .clickable {
-                                    scope.launch {
-                                        pagerState.animateScrollToPage(index)
+                            Box(
+                                modifier = Modifier
+                                    .size(if (isSelected) 50.dp else 40.dp)
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .clickable {
+                                        scope.launch {
+                                            pagerState.animateScrollToPage(index)
+                                        }
                                     }
-                                }
-                                .then(
-                                    if (isSelected) Modifier.background(
-                                        AccentGold,
-                                        RoundedCornerShape(8.dp)
-                                    ).padding(2.dp).clip(RoundedCornerShape(6.dp))
-                                    else Modifier
+                                    .then(
+                                        if (isSelected) Modifier
+                                            .background(AccentGold, RoundedCornerShape(8.dp))
+                                            .padding(2.dp)
+                                            .clip(RoundedCornerShape(6.dp))
+                                        else Modifier
+                                    )
+                            ) {
+                                AsyncImage(
+                                    model = ImageRequest.Builder(context)
+                                        .data(thumbUrl)
+                                        .crossfade(100)
+                                        .build(),
+                                    contentDescription = null,
+                                    contentScale = ContentScale.Crop,
+                                    modifier = Modifier.fillMaxSize()
                                 )
-                        ) {
-                            AsyncImage(
-                                model = ImageRequest.Builder(context)
-                                    .data(thumbUrl)
-                                    .crossfade(100)
-                                    .build(),
-                                contentDescription = null,
-                                contentScale = ContentScale.Crop,
-                                modifier = Modifier.fillMaxSize()
-                            )
+                            }
                         }
                     }
                 }
@@ -367,6 +409,7 @@ fun MediaViewerScreen(
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
+                        .navigationBarsPadding()
                         .padding(24.dp),
                     verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
@@ -451,7 +494,7 @@ fun MediaViewerScreen(
                         )
                     }
 
-                    Spacer(modifier = Modifier.height(20.dp))
+                    Spacer(modifier = Modifier.height(16.dp))
                 }
             }
         }

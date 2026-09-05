@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -21,6 +22,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CloudDownload
 import androidx.compose.material.icons.filled.Computer
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.filled.Devices
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Language
@@ -32,6 +35,7 @@ import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Smartphone
 import androidx.compose.material.icons.filled.Storage
 import androidx.compose.material.icons.filled.Sync
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -43,6 +47,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
@@ -70,6 +75,7 @@ import com.photovault.ui.components.HapticHelper
 import com.photovault.ui.theme.AccentGold
 import com.photovault.ui.theme.DarkBackground
 import com.photovault.ui.theme.DarkSurfaceVariant
+import com.photovault.ui.theme.DangerRed
 import com.photovault.ui.theme.TextMuted
 import com.photovault.ui.theme.TextPrimary
 import com.photovault.ui.theme.TextSecondary
@@ -92,6 +98,7 @@ fun DevicesScreen(
     var isLoading by remember { mutableStateOf(true) }
     var downloadingDeviceId by remember { mutableStateOf<String?>(null) }
     var downloadProgress by remember { mutableStateOf<Pair<Int, Int>?>(null) }
+    var deviceToDelete by remember { mutableStateOf<DeviceItem?>(null) }
 
     fun loadDevices() {
         isLoading = true
@@ -138,11 +145,25 @@ fun DevicesScreen(
                 downloadingDeviceId = null
                 downloadProgress = null
                 HapticHelper.vibrateSuccess(context)
-                Toast.makeText(context, "Downloaded $completed files from ${device.name} to device gallery!", Toast.LENGTH_LONG).show()
+                Toast.makeText(context, "Downloaded $completed files from ${device.name} to gallery!", Toast.LENGTH_LONG).show()
             }.onFailure {
                 downloadingDeviceId = null
                 downloadProgress = null
-                Toast.makeText(context, "Failed to download media: ${it.localizedMessage}", Toast.LENGTH_SHORT).show()
+                Toast.makeText(context, "Download failed: ${it.localizedMessage}", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
+    fun deleteDevice(device: DeviceItem) {
+        scope.launch {
+            val res = app.apiClient.deleteDevice(device.id)
+            res.onSuccess {
+                HapticHelper.vibrateSuccess(context)
+                Toast.makeText(context, "Removed device ${device.name}", Toast.LENGTH_SHORT).show()
+                loadDevices()
+            }.onFailure {
+                HapticHelper.vibrateWarning(context)
+                Toast.makeText(context, "Failed to remove device: ${it.localizedMessage}", Toast.LENGTH_LONG).show()
             }
         }
     }
@@ -153,13 +174,13 @@ fun DevicesScreen(
                 title = {
                     Column {
                         Text(
-                            text = "Vault Devices & Sync",
+                            text = "Vault Devices",
                             fontSize = 20.sp,
                             fontWeight = FontWeight.Bold,
                             color = TextPrimary
                         )
                         Text(
-                            text = "${devices.size} connected nodes",
+                            text = "${devices.size} registered clients",
                             fontSize = 11.sp,
                             color = TextMuted
                         )
@@ -234,7 +255,7 @@ fun DevicesScreen(
                                     fontSize = 15.sp
                                 )
                                 Text(
-                                    text = "Browse or download original photos and videos uploaded from any device in your vault.",
+                                    text = "Manage connected clients, browse files, download media, or remove test devices.",
                                     color = TextMuted,
                                     fontSize = 12.sp
                                 )
@@ -248,10 +269,12 @@ fun DevicesScreen(
                     val isCurrent = device.id == currentDeviceId
                     val itemCount = deviceMediaCounts[device.id] ?: 0
                     val isDownloading = downloadingDeviceId == device.id
+                    val isAdmin = device.name.contains("Admin", ignoreCase = true) || device.deviceType.lowercase() == "mac"
 
                     DeviceCard(
                         device = device,
                         isCurrentDevice = isCurrent,
+                        isAdmin = isAdmin,
                         mediaCount = itemCount,
                         isDownloading = isDownloading,
                         downloadProgress = if (isDownloading) downloadProgress else null,
@@ -261,10 +284,48 @@ fun DevicesScreen(
                         },
                         onDownloadAll = {
                             downloadAllFromDevice(device)
+                        },
+                        onDeleteDevice = {
+                            HapticHelper.vibrateWarning(context)
+                            deviceToDelete = device
                         }
                     )
                 }
             }
+        }
+
+        // Delete Device Confirmation Dialog
+        deviceToDelete?.let { dev ->
+            AlertDialog(
+                onDismissRequest = { deviceToDelete = null },
+                title = {
+                    Text("Delete Client Device?", color = TextPrimary, fontWeight = FontWeight.Bold)
+                },
+                text = {
+                    Text(
+                        "Are you sure you want to remove '${dev.name}' (${dev.deviceType.uppercase()}) from your PhotoVault? Its uploaded files will be preserved on the server.",
+                        color = TextSecondary,
+                        fontSize = 14.sp
+                    )
+                },
+                confirmButton = {
+                    Button(
+                        onClick = {
+                            deleteDevice(dev)
+                            deviceToDelete = null
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = DangerRed)
+                    ) {
+                        Text("Delete Device", color = Color.White, fontWeight = FontWeight.Bold)
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { deviceToDelete = null }) {
+                        Text("Cancel", color = TextMuted)
+                    }
+                },
+                containerColor = DarkSurfaceVariant
+            )
         }
     }
 }
@@ -273,11 +334,13 @@ fun DevicesScreen(
 private fun DeviceCard(
     device: DeviceItem,
     isCurrentDevice: Boolean,
+    isAdmin: Boolean,
     mediaCount: Int,
     isDownloading: Boolean,
     downloadProgress: Pair<Int, Int>?,
     onViewPhotos: () -> Unit,
-    onDownloadAll: () -> Unit
+    onDownloadAll: () -> Unit,
+    onDeleteDevice: () -> Unit
 ) {
     val icon = when (device.deviceType.lowercase()) {
         "mac", "desktop" -> Icons.Default.Laptop
@@ -348,10 +411,25 @@ private fun DeviceCard(
                     }
 
                     Text(
-                        text = "Type: ${device.deviceType.uppercase()} • $mediaCount items in vault",
+                        text = "Type: ${device.deviceType.uppercase()} • $mediaCount files",
                         color = TextMuted,
                         fontSize = 12.sp
                     )
+                }
+
+                // Delete Device Button (for non-admin and non-current devices)
+                if (!isAdmin && !isCurrentDevice) {
+                    IconButton(
+                        onClick = onDeleteDevice,
+                        modifier = Modifier.size(36.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.DeleteOutline,
+                            contentDescription = "Remove Device",
+                            tint = DangerRed.copy(alpha = 0.8f),
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
                 }
             }
 

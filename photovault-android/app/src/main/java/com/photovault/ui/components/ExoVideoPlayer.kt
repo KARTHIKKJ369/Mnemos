@@ -54,6 +54,7 @@ fun ExoVideoPlayer(
                     useController = true
                     controllerShowTimeoutMs = 2500
                     controllerAutoShow = true
+                    setShowBuffering(PlayerView.SHOW_BUFFERING_WHEN_PLAYING)
                     layoutParams = FrameLayout.LayoutParams(
                         ViewGroup.LayoutParams.MATCH_PARENT,
                         ViewGroup.LayoutParams.MATCH_PARENT

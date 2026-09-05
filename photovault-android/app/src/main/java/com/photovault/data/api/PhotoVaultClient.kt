@@ -1,13 +1,20 @@
 package com.photovault.data.api
 
+import android.content.ContentValues
 import android.content.Context
 import android.net.Uri
+import android.os.Build
+import android.os.Environment
+import android.provider.MediaStore
 import com.photovault.data.local.PreferenceStore
+import com.photovault.data.model.DeviceItem
+import com.photovault.data.model.DeviceListResponse
 import com.photovault.data.model.DeviceRegistrationRequest
 import com.photovault.data.model.DeviceRegistrationResponse
 import com.photovault.data.model.HealthResponse
 import com.photovault.data.model.MediaItem
 import com.photovault.data.model.SearchResponse
+import com.photovault.data.model.SyncDiffResponse
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
@@ -99,6 +106,51 @@ class PhotoVaultClient(
             }
         }
 
+    suspend fun fetchDevices(): Result<List<DeviceItem>> = withContext(Dispatchers.IO) {
+        try {
+            val base = prefs.serverUrl.value
+            val request = Request.Builder()
+                .url("$base/devices")
+                .get()
+                .build()
+
+            okHttpClient.newCall(request).execute().use { response ->
+                val body = response.body?.string() ?: ""
+                if (response.isSuccessful) {
+                    val parsed = json.decodeFromString(DeviceListResponse.serializer(), body)
+                    Result.success(parsed.devices)
+                } else {
+                    Result.failure(IOException("Fetch devices failed: HTTP ${response.code}"))
+                }
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun fetchSyncDiff(cursor: Long = 0): Result<SyncDiffResponse> = withContext(Dispatchers.IO) {
+        try {
+            val base = prefs.serverUrl.value
+            val deviceId = prefs.deviceId.value
+            val request = Request.Builder()
+                .url("$base/sync/diff?device_id=$deviceId&cursor=$cursor")
+                .get()
+                .build()
+
+            okHttpClient.newCall(request).execute().use { response ->
+                val body = response.body?.string() ?: ""
+                if (response.isSuccessful) {
+                    val parsed = json.decodeFromString(SyncDiffResponse.serializer(), body)
+                    Result.success(parsed)
+                } else {
+                    Result.failure(IOException("Sync diff failed: HTTP ${response.code}"))
+                }
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
     suspend fun checkHealth(): Result<HealthResponse> = withContext(Dispatchers.IO) {
         try {
             val base = prefs.serverUrl.value
@@ -125,6 +177,8 @@ class PhotoVaultClient(
         query: String = "",
         mimeType: String = "",
         favoriteOnly: Boolean = false,
+        deviceId: String = "",
+        excludeDeviceId: String = "",
         sort: String = "taken_at",
         order: String = "desc",
         limit: Int = 1000,
@@ -136,6 +190,8 @@ class PhotoVaultClient(
             if (query.isNotEmpty()) urlBuilder.append("&query=").append(Uri.encode(query))
             if (mimeType.isNotEmpty()) urlBuilder.append("&mime_type=").append(Uri.encode(mimeType))
             if (favoriteOnly) urlBuilder.append("&favorite=true")
+            if (deviceId.isNotEmpty()) urlBuilder.append("&device_id=").append(Uri.encode(deviceId))
+            if (excludeDeviceId.isNotEmpty()) urlBuilder.append("&exclude_device_id=").append(Uri.encode(excludeDeviceId))
 
             val request = Request.Builder()
                 .url(urlBuilder.toString())
@@ -150,6 +206,62 @@ class PhotoVaultClient(
                 } else {
                     Result.failure(IOException("Fetch media failed: HTTP ${response.code} $body"))
                 }
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun downloadMediaToGallery(
+        fileId: String,
+        filename: String,
+        mimeType: String
+    ): Result<Uri> = withContext(Dispatchers.IO) {
+        try {
+            val url = getOriginalUrl(fileId)
+            val request = Request.Builder().url(url).get().build()
+            okHttpClient.newCall(request).execute().use { response ->
+                if (!response.isSuccessful) {
+                    return@withContext Result.failure(IOException("Download failed: HTTP ${response.code}"))
+                }
+                val responseBody = response.body ?: return@withContext Result.failure(IOException("Empty response body"))
+                val isVideo = mimeType.startsWith("video/")
+                val collection = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                    if (isVideo) MediaStore.Video.Media.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY)
+                    else MediaStore.Images.Media.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY)
+                } else {
+                    if (isVideo) MediaStore.Video.Media.EXTERNAL_CONTENT_URI
+                    else MediaStore.Images.Media.EXTERNAL_CONTENT_URI
+                }
+
+                val safeFilename = if (filename.isBlank()) "photovault_${fileId.take(8)}" else filename
+                val values = ContentValues().apply {
+                    put(MediaStore.MediaColumns.DISPLAY_NAME, safeFilename)
+                    put(MediaStore.MediaColumns.MIME_TYPE, if (mimeType.isNotBlank()) mimeType else "image/jpeg")
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                        put(MediaStore.MediaColumns.IS_PENDING, 1)
+                        put(
+                            MediaStore.MediaColumns.RELATIVE_PATH,
+                            if (isVideo) Environment.DIRECTORY_MOVIES + "/PhotoVault"
+                            else Environment.DIRECTORY_PICTURES + "/PhotoVault"
+                        )
+                    }
+                }
+
+                val uri = context.contentResolver.insert(collection, values)
+                    ?: return@withContext Result.failure(IOException("Failed to create MediaStore entry"))
+
+                context.contentResolver.openOutputStream(uri)?.use { output ->
+                    responseBody.byteStream().copyTo(output)
+                }
+
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                    values.clear()
+                    values.put(MediaStore.MediaColumns.IS_PENDING, 0)
+                    context.contentResolver.update(uri, values, null, null)
+                }
+
+                Result.success(uri)
             }
         } catch (e: Exception) {
             Result.failure(e)

@@ -93,7 +93,7 @@ fun MediaViewerScreen(
     initialFileId: String,
     onClose: () -> Unit
 ) {
-    // Intercept hardware/gesture back press to close the viewer instead of the app!
+    // Intercept hardware/gesture back press to close the viewer
     BackHandler(enabled = true) {
         onClose()
     }
@@ -138,9 +138,11 @@ fun MediaViewerScreen(
     val filmstripListState = rememberLazyListState()
 
     LaunchedEffect(pagerState.currentPage) {
-        filmstripListState.animateScrollToItem(
-            (pagerState.currentPage - 2).coerceAtLeast(0)
-        )
+        if (!currentMedia.isVideo) {
+            filmstripListState.animateScrollToItem(
+                (pagerState.currentPage - 2).coerceAtLeast(0)
+            )
+        }
     }
 
     fun downloadCurrent() {
@@ -200,7 +202,7 @@ fun MediaViewerScreen(
             }
         }
 
-        // Top Floating Pill Bar (with proper statusBarsPadding)
+        // Top Floating Action Bar (safe padding with statusBarsPadding)
         AnimatedVisibility(
             visible = controlsVisible,
             enter = fadeIn() + slideInVertically { -it },
@@ -223,7 +225,7 @@ fun MediaViewerScreen(
                     },
                     modifier = Modifier
                         .size(42.dp)
-                        .background(Color.Black.copy(alpha = 0.7f), CircleShape)
+                        .background(Color.Black.copy(alpha = 0.75f), CircleShape)
                 ) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.ArrowBack,
@@ -235,7 +237,7 @@ fun MediaViewerScreen(
                 // Filename & Device pill
                 Box(
                     modifier = Modifier
-                        .background(Color.Black.copy(alpha = 0.7f), RoundedCornerShape(20.dp))
+                        .background(Color.Black.copy(alpha = 0.75f), RoundedCornerShape(20.dp))
                         .padding(horizontal = 14.dp, vertical = 8.dp)
                 ) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -262,7 +264,7 @@ fun MediaViewerScreen(
                 // Actions Pill (Download, Favorite, Info, Delete)
                 Row(
                     modifier = Modifier
-                        .background(Color.Black.copy(alpha = 0.7f), RoundedCornerShape(20.dp))
+                        .background(Color.Black.copy(alpha = 0.75f), RoundedCornerShape(20.dp))
                         .padding(horizontal = 4.dp, vertical = 2.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
@@ -338,8 +340,8 @@ fun MediaViewerScreen(
             }
         }
 
-        // Bottom Filmstrip Carousel (with proper navigationBarsPadding)
-        if (mediaList.size > 1) {
+        // Bottom Filmstrip Carousel: Only displayed for photos to never block video playback controls!
+        if (!currentMedia.isVideo && mediaList.size > 1) {
             AnimatedVisibility(
                 visible = controlsVisible,
                 enter = fadeIn() + slideInVertically { it },
@@ -368,7 +370,7 @@ fun MediaViewerScreen(
 
                             Box(
                                 modifier = Modifier
-                                    .size(if (isSelected) 50.dp else 40.dp)
+                                    .size(if (isSelected) 48.dp else 38.dp)
                                     .clip(RoundedCornerShape(8.dp))
                                     .clickable {
                                         scope.launch {

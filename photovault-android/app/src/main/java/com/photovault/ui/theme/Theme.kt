@@ -28,6 +28,7 @@ fun PhotoVaultTheme(
 
     MaterialTheme(
         colorScheme = colorScheme,
+        typography = PhotoVaultTypography,
         content = content
     )
 }

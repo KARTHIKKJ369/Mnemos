@@ -39,6 +39,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.photovault.PhotoVaultApplication
 import com.photovault.ui.components.ButtonVariant
+import com.photovault.ui.components.MnemosBrandHeader
 import com.photovault.ui.components.MnemosButton
 import com.photovault.ui.components.RedDotIndicator
 import com.photovault.ui.theme.FrameBlack
@@ -74,43 +75,9 @@ fun ConnectScreen(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
-        Box(
-            modifier = Modifier
-                .size(60.dp)
-                .clip(CircleShape)
-                .background(SignalRedSubtle)
-                .border(1.dp, SignalRed, CircleShape),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                imageVector = Icons.Default.Lock,
-                contentDescription = null,
-                tint = SignalRed,
-                modifier = Modifier.size(26.dp)
-            )
-        }
+        MnemosBrandHeader()
 
-        Spacer(modifier = Modifier.height(18.dp))
-
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            RedDotIndicator(size = 7.dp)
-            Text(
-                text = "FRAME // MNEMOS",
-                style = MnemosType.Headline28,
-                color = FrameWhite
-            )
-        }
-
-        Spacer(modifier = Modifier.height(4.dp))
-
-        Text(
-            text = "PRIVATE VAULT // HARDWARE NODE AUTH",
-            style = MnemosType.Mono11,
-            color = FrameGray500
-        )
+        Spacer(modifier = Modifier.height(24.dp))
 
         Spacer(modifier = Modifier.height(32.dp))
 

@@ -4,48 +4,41 @@
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
-    <!-- Vault Corner Reticle Brackets -->
-    <path
-        android:strokeWidth="1.8"
-        android:strokeColor="#55555C"
-        android:strokeLineCap="round"
-        android:strokeLineJoin="round"
-        android:pathData="M 32,38 L 32,32 L 38,32" />
-    <path
-        android:strokeWidth="1.8"
-        android:strokeColor="#55555C"
-        android:strokeLineCap="round"
-        android:strokeLineJoin="round"
-        android:pathData="M 70,32 L 76,32 L 76,38" />
-    <path
-        android:strokeWidth="1.8"
-        android:strokeColor="#55555C"
-        android:strokeLineCap="round"
-        android:strokeLineJoin="round"
-        android:pathData="M 32,70 L 32,76 L 38,76" />
-    <path
-        android:strokeWidth="1.8"
-        android:strokeColor="#55555C"
-        android:strokeLineCap="round"
-        android:strokeLineJoin="round"
-        android:pathData="M 70,76 L 76,76 L 76,70" />
 
-    <!-- Pure White Optical Aperture Ring, radius 21dp centered at (54,54) -->
+    <!-- Outer fine circular ring -->
     <path
-        android:strokeWidth="3.2"
-        android:strokeColor="#FFFFFF"
-        android:strokeLineCap="round"
+        android:strokeWidth="1.2"
+        android:strokeColor="#4A5868"
+        android:pathData="M 54,16 A 38,38 0 1,0 54,92 A 38,38 0 1,0 54,16 Z" />
+
+    <!-- 3D Bevel Lip / Base -->
+    <path
+        android:fillColor="#EDB03B"
+        android:strokeColor="#111418"
+        android:strokeWidth="2.2"
         android:strokeLineJoin="round"
-        android:pathData="M 54,33 A 21,21 0 1,0 54,75 A 21,21 0 1,0 54,33 Z" />
+        android:pathData="M 40,78 L 68,78 C 73,78 77,74 77,69 L 77,74 C 77,79 73,83 68,83 L 40,83 C 35,83 31,79 31,74 L 31,69 C 31,74 35,78 40,78 Z" />
 
-    <!-- Signal Red (#FF2A2A) Vault Iris Core, radius 7.5dp centered at (54,54) -->
+    <!-- Lip separator line -->
     <path
-        android:fillColor="#FF2A2A"
-        android:pathData="M 54,46.5 A 7.5,7.5 0 1,0 54,61.5 A 7.5,7.5 0 1,0 54,46.5 Z" />
+        android:strokeColor="#111418"
+        android:strokeWidth="1.8"
+        android:strokeLineCap="round"
+        android:pathData="M 33,78 L 75,78" />
 
-    <!-- Specular Lens Glint on Iris Core -->
+    <!-- Golden Camera / Screen Frame Body -->
     <path
-        android:fillColor="#FFFFFF"
-        android:fillAlpha="0.75"
-        android:pathData="M 51.5,49 A 2.2,2.2 0 1,0 51.5,53.4 A 2.2,2.2 0 1,0 51.5,49 Z" />
+        android:fillColor="#EDB03B"
+        android:strokeColor="#111418"
+        android:strokeWidth="2.2"
+        android:strokeLineJoin="round"
+        android:pathData="M 41,31 L 67,31 C 73,31 77,35 77,41 L 77,68 C 77,74 73,78 67,78 L 41,78 C 35,78 31,74 31,68 L 31,41 C 31,35 35,31 41,31 Z" />
+
+    <!-- Inner Screen Window (Sage Green) -->
+    <path
+        android:fillColor="#6A8E7D"
+        android:strokeColor="#111418"
+        android:strokeWidth="1.8"
+        android:strokeLineJoin="round"
+        android:pathData="M 44,40 L 64,40 C 67,40 69,42 69,45 L 69,64 C 69,67 67,69 64,69 L 44,69 C 41,69 39,67 39,64 L 39,45 C 39,42 41,40 44,40 Z" />
 </vector>

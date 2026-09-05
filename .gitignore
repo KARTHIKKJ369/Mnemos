@@ -67,8 +67,8 @@ mnemos-web/tsconfig.tsbuildinfo
 # =========================================
 # Databases & SQLite Runtime Data
 # =========================================
-data/
-db/
+/data/
+/db/
 *.db
 *.db-*
 *.sqlite
@@ -96,6 +96,21 @@ media/
 chunks/
 /chunks/
 /Volumes/
+
+# =========================================
+# Android Build Artifacts & Local Config
+# =========================================
+.gradle/
+.kotlin/
+**/build/
+*.apk
+*.aab
+local.properties
+photovault-android/local.properties
+photovault-android/.gradle/
+photovault-android/.kotlin/
+photovault-android/app/build/
+photovault-android/build/
 
 # =========================================
 # Temporary & Scratch Files

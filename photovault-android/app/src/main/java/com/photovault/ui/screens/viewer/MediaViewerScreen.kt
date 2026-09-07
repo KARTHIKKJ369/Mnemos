@@ -255,8 +255,10 @@ fun MediaViewerScreen(
             val item = mediaList[page]
             if (item.isVideo) {
                 val videoUrl = app.apiClient.getVideoStreamUrl(item.fileId)
+                val isPageActive = pagerState.currentPage == page
                 ExoVideoPlayer(
                     videoUrl = videoUrl,
+                    isActive = isPageActive,
                     controlsVisible = controlsVisible,
                     onControlsVisibilityChanged = { isVisible ->
                         controlsVisible = isVisible

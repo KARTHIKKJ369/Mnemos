@@ -22,6 +22,12 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.media3.common.AudioAttributes
+import androidx.media3.common.C
+import androidx.media3.common.Player
 import androidx.media3.common.MediaItem as ExoMediaItem
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
@@ -32,6 +38,7 @@ import androidx.media3.ui.PlayerView
 @Composable
 fun ExoVideoPlayer(
     videoUrl: String,
+    isActive: Boolean = true,
     modifier: Modifier = Modifier,
     controlsVisible: Boolean = true,
     onControlsVisibilityChanged: (Boolean) -> Unit = {},
@@ -40,16 +47,57 @@ fun ExoVideoPlayer(
 ) {
     val context = LocalContext.current
     val view = LocalView.current
+    val lifecycleOwner = LocalLifecycleOwner.current
 
     val exoPlayer = remember(videoUrl) {
-        ExoPlayer.Builder(context).build().apply {
-            setMediaItem(ExoMediaItem.fromUri(videoUrl))
-            prepare()
-            playWhenReady = true
-        }
+        val audioAttributes = AudioAttributes.Builder()
+            .setContentType(C.AUDIO_CONTENT_TYPE_MOVIE)
+            .setUsage(C.USAGE_MEDIA)
+            .build()
+
+        ExoPlayer.Builder(context)
+            .setAudioAttributes(audioAttributes, true)
+            .build().apply {
+                setMediaItem(ExoMediaItem.fromUri(videoUrl))
+                prepare()
+                playWhenReady = false
+            }
     }
 
     var playerViewRef by remember { mutableStateOf<PlayerView?>(null) }
+
+    LaunchedEffect(isActive) {
+        if (isActive) {
+            if (exoPlayer.playbackState == Player.STATE_ENDED) {
+                exoPlayer.seekTo(0)
+            }
+            exoPlayer.playWhenReady = true
+            exoPlayer.play()
+        } else {
+            exoPlayer.playWhenReady = false
+            exoPlayer.pause()
+        }
+    }
+
+    DisposableEffect(lifecycleOwner, exoPlayer, isActive) {
+        val observer = LifecycleEventObserver { _, event ->
+            when (event) {
+                Lifecycle.Event.ON_RESUME -> {
+                    if (isActive) {
+                        exoPlayer.play()
+                    }
+                }
+                Lifecycle.Event.ON_PAUSE, Lifecycle.Event.ON_STOP -> {
+                    exoPlayer.pause()
+                }
+                else -> {}
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+        }
+    }
 
     LaunchedEffect(isFillScreen) {
         playerViewRef?.resizeMode = if (isFillScreen) {
@@ -71,6 +119,8 @@ fun ExoVideoPlayer(
 
     DisposableEffect(exoPlayer) {
         onDispose {
+            playerViewRef?.player = null
+            exoPlayer.stop()
             exoPlayer.release()
         }
     }
